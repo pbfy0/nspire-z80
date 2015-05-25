@@ -37,10 +37,10 @@ DrZ80Ver: .long 0x0001
 ;@---------------------------------------
 
 .macro fetch cycs
-	stmfd sp!,{r0-r12}
-	ldrb r0,[z80pc]
-	bl pdb
-	ldmfd sp!,{r0-r12}
+	@stmfd sp!,{r0-r12}
+	@ldrb r0,[z80pc]
+	@bl pdb
+	@ldmfd sp!,{r0-r12}
 	subs z80_icount,z80_icount,#\cycs
 	ldrplb r0,[z80pc],#1
 	ldrpl pc,[opcodes,r0, lsl #2]

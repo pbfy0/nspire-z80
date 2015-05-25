@@ -3,7 +3,7 @@
 #include "drz80.h"
 #include "lcd.h"
 #include "keypad.h"
-#include "mmap.h"
+//#include "mmap.h"
 
 void cpu_init();
 unsigned int cpu_rebasePC(unsigned short x);
@@ -13,6 +13,7 @@ unsigned char cpu_read8(unsigned short idx);
 void cpu_write16(unsigned short val, unsigned short idx);
 void cpu_write8(unsigned char val, unsigned short idx);
 unsigned char cpu_in(unsigned short port);
+//static unsigned char cpu_in_(unsigned short port);
 void cpu_out(unsigned short port, unsigned char val);
 void cpu_irq_callback();
 
@@ -49,7 +50,8 @@ int main(void){
 		DrZ80Run(&ZCpu, 1000);
 		if(isKeyPressed(KEY_NSPIRE_ESC)) break;
 	}
-	mmap_end();
+	//mmap_end();
+	free(flash);
 	return 0;
 }
 
@@ -77,49 +79,55 @@ void pdb(uint32_t pc){
 }
 
 unsigned int cpu_rebasePC(unsigned short x){
-	printf("rebasePC 0x%x\n", x);
-	ZCpu.Z80PC_BASE = (unsigned int)mmap_bank_for_addr(x);
-	return ZCpu.Z80PC_BASE + (x & 0x3FFF);
+	//printf("rebasePC 0x%x\n", x);
+	ZCpu.Z80PC_BASE = (unsigned int)flash;//mmap_bank_for_addr(x);
+	return ZCpu.Z80PC_BASE + x;//(x & 0x3FFF);
 }
 
 unsigned int cpu_rebaseSP(unsigned short x){
 	//printf("rebaseSP 0x%x\n", x);
-	ZCpu.Z80SP_BASE = (unsigned int)mmap_bank_for_addr(x);
-	return ZCpu.Z80SP_BASE + (x & 0x3FFF);
+	ZCpu.Z80SP_BASE = (unsigned int)flash;//mmap_bank_for_addr(x);
+	return ZCpu.Z80SP_BASE + x;//(x & 0x3FFF);
 }
 
 unsigned short cpu_read16(unsigned short idx){
-	printf("read16 0x%x\n", idx);
+	//printf("read16 0x%x\n", idx);
 	//asm(" b .");
-	uint8_t *p = mmap_z80_to_arm(idx);
+	uint8_t *p = flash+idx;//mmap_z80_to_arm(idx);
 	return *p | *(p+1) << 8;
 }
 unsigned char cpu_read8(unsigned short idx){
-	printf("read8 0x%x\n", idx);
-	return *(mmap_z80_to_arm(idx));
+	//printf("read8 0x%x\n", idx);
+	return flash[idx];//*(mmap_z80_to_arm(idx));
 }
 
 void cpu_write16(unsigned short val, unsigned short idx){
-	printf("write16 0x%x 0x%x\n", idx, val);
-	uint8_t *p = mmap_z80_to_arm(idx);
+	//printf("write16 0x%x 0x%x\n", idx, val);
+	uint8_t *p = flash+idx;//mmap_z80_to_arm(idx);
 	*p++ = val & 0xff;
 	*p = val >> 8;
 }
 
 void cpu_write8(unsigned char val, unsigned short idx){
-	printf("write8 0x%x 0x%x\n", idx, val);
-	*(mmap_z80_to_arm(idx)) = val;
+	//printf("write8 0x%x 0x%x\n", idx, val);
+	//*(mmap_z80_to_arm(idx)) = val;
+	flash[idx] = val;
 }
+/*unsigned char cpu_in(unsigned short port){
+	port &= 0xff;
+	uint8_t x = cpu_in_(port);
+	//if(port == 1) printf("in %x %x\n", port, x);
+	return x;
+}*/
 unsigned char cpu_in(unsigned short port){
 	port &= 0xff;
-	printf("in %x\n", port);
 	switch(port){
 		case 0x01:
 		return keypad_read();
-		case 0x05:
-		case 0x06:
-		case 0x07:
-		return mmap_in(port);
+		//case 0x05:
+		//case 0x06:
+		//case 0x07:
+		//return mmap_in(port);
 		case 0x10:
 		case 0x12:
 		return lcd_cmd_read();
@@ -132,16 +140,16 @@ unsigned char cpu_in(unsigned short port){
 
 void cpu_out(unsigned short port, unsigned char val){
 	port &= 0xff;
-	printf("out %x %x\n", port, val);
+	//if(port == 1) printf("out %x %x\n", port, val);
 	switch(port){
 		case 0x01:
 		keypad_write(val);
 		break;
-		case 0x05:
-		case 0x06:
-		case 0x07:
-		mmap_out(port, val);
-		break;
+		//case 0x05:
+		//case 0x06:
+		//case 0x07:
+		//mmap_out(port, val);
+		//break;
 		case 0x10:
 		case 0x12:
 		lcd_cmd(val);
