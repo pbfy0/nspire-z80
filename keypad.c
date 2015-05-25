@@ -32,15 +32,14 @@ void keypad_write(uint8_t val){
 uint8_t keypad_read(){
 	int i;
 	uint8_t o = 0;
-	for(i = 0; i < 8; i++){
+	for(i = 0; i < 7; i++){
 		if(mon & 1<<i){
 			//t_key **k = n_key_ar[i];
 			int j;
-			for(j = 0; j < 7; j++){
-				if(n_key_ar[j][i] != NULL) o |= isKeyPressed(*(n_key_ar[j][i])) << j;
+			for(j = 0; j < 8; j++){
+				if(n_84_key_ar[j][i] != NULL) o |= isKeyPressed(*(n_84_key_ar[j][i])) << j;
 			}
 		}
 	}
-	if((~o & 0xff) == 0xdf) printf("keypad_read %02x %02x\n", ~o & 0xff, mon);
 	return ~o;
 }
