@@ -41,7 +41,7 @@ DrZ80Ver: .long 0x0001
 	@ldr r0,[cpucontext,#z80pc_base]
 	@sub r0,z80pc,r0
 	@bl pdb
-	ldmfd sp!,{r0-r12}
+	@ldmfd sp!,{r0-r12}
 	subs z80_icount,z80_icount,#\cycs
 	ldrplb r0,[z80pc],#1
 	ldrpl pc,[opcodes,r0, lsl #2]
