@@ -14,30 +14,43 @@ uint8_t *framebuffer;
 #define GET_PX_XY(x, y) get_pixel(XY_TO_IDX(x, y))
 #define MAX_COL ((n_bits == 8) ? 14 : 19)
 
-#define N_XY_TO_IDX(x, y) ((y * 320 + x) >> 1)
-#define printf(...)
+#define FB_OFFSET(x, y) (((y) * 320 + (x)) >> 1)
+//#define printf(...)
 
 void lcd_init(){
 	framebuffer = SCREEN_BASE_ADDRESS;
 	lcd_ingray();
 	memset(framebuffer, 0xff, 320*240/2);
 }
-static void n_set_pixel(int x, int y, uint8_t v){
-	uint8_t *base = framebuffer + N_XY_TO_IDX(x, y);
+/*static void n_set_pixel(int x, int y, uint8_t v){
+	uint8_t *base = framebuffer + FB_OFFSET(x, y);
 	if(!(x & 1)) v <<= 4;
 	*base &= ~(x & 1 ? 0x0f : 0xf0);
 	*base |= v;
-}
+}*/
 static void n_set_84_pixel(int x, int y, uint8_t gray){
-	int dx, dy;
-	for(dx = 0; dx < 3; dx++){
+	int dy;
+	x *= 3;
+	y *= 3;
+	uint8_t d = gray << 4 | gray;
+	if(x & 1){
 		for(dy = 0; dy < 3; dy++){
-			n_set_pixel(x*3+dx, y*3+dy, gray);
+			int o = FB_OFFSET(x, y+dy);
+			framebuffer[o+1] = d;
+			framebuffer[o] &= ~0x0f;
+			framebuffer[o] |= gray;
+		}
+	}else{
+		for(dy = 0; dy < 3; dy++){
+			int o = FB_OFFSET(x, y+dy);
+			framebuffer[o] = d;
+			framebuffer[o+1] &= ~0xf0;
+			framebuffer[o+1] |= gray << 4;
 		}
 	}
 }
 static void set_pixel(int x, int y, uint8_t val){
-	printf("set_pixel %d %d %d\n", x, y, val);
+	//printf("set_pixel %d %d %d\n", x, y, val);
 	if(y < 64 && x < 96) n_set_84_pixel(x, y, val ? 0x0 : 0xf);
 	int n = XY_TO_IDX(x, y);
 	if(val){
@@ -54,12 +67,12 @@ static uint8_t get_pixel(int x, int y){
 void lcd_cmd(uint8_t cmd){
 	if(cmd >= 0x20 && cmd <= 0x3F){
 		cur_col = cmd - 0x20;
-		printf("col %d\n", cur_col);
+		//printf("col %d\n", cur_col);
 		return;
 	}
 	if(cmd >= 0x80 && cmd <= 0xBF){
 		cur_row = cmd - 0x80;
-		printf("row %d\n", cur_row);
+		//printf("row %d\n", cur_row);
 	}
 	if(cmd >= 0xC0){
 		// contrast
@@ -69,21 +82,21 @@ void lcd_cmd(uint8_t cmd){
 		case BIT_6:
 		case BIT_8:
 			n_bits = cmd ? 8 : 6;
-			printf("%d bits\n", n_bits);
+			//printf("%d bits\n", n_bits);
 		break;
 		case LCD_ENABLE:
 			enabled = TRUE;
-			puts("enabled\n");
+			//puts("enabled");
 		break;
 		case LCD_DISABLE:
 			enabled = FALSE;
-			puts("disabled\n");
+			//puts("disabled");
 		break;
 		case AUTO_UP:
 		case AUTO_DOWN:
 		case AUTO_LEFT:
 		case AUTO_RIGHT:
-			printf("auto %d\n", cmd);
+			//printf("auto %d\n", cmd);
 			auto_mode = cmd;
 		break;
 	}

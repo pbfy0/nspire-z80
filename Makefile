@@ -6,7 +6,7 @@ LD = nspire-ld-bflt
 GCCFLAGS = -Wall -W -marm
 LDFLAGS =
 ifeq ($(DEBUG),FALSE)
-	GCCFLAGS += -Os
+	GCCFLAGS += -O3
 else
 	GCCFLAGS += -O0 -g
 	LDFLAGS += --debug

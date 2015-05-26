@@ -40,7 +40,6 @@ int main(void){
 	lcd_init();
 	cpu_init();
 	//asm(" b .");
-	int i;
 	printf("%08x\n", ZCpu.Z80PC_BASE);
 	//printf("%p\n", mmap_bank_for_addr(0));
 	/*for(i = 0; i < 0x100; i++){
@@ -74,9 +73,9 @@ void cpu_irq_callback(){
 	printf("irq\n");
 }
 
-void pdb(uint32_t pc){
-	printf("pc(a) %02x\n", pc);
-}
+//void pdb(uint32_t pc){
+//	printf("pc(a) %02x\n", pc);
+//}
 
 unsigned int cpu_rebasePC(unsigned short x){
 	//printf("rebasePC 0x%x\n", x);
