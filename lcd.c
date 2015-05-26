@@ -13,6 +13,10 @@ uint8_t *framebuffer;
 #define SET_PX_XY(x, y, v) set_pixel(XY_TO_IDX(x, y), v)
 #define GET_PX_XY(x, y) get_pixel(XY_TO_IDX(x, y))
 #define MAX_COL ((n_bits == 8) ? 14 : 19)
+#define C_XO ((320-(96*3))/2)
+#define C_YO ((240-(64*3))/2)
+
+#define C_OFFSET FB_OFFSET(C_XO, C_YO)
 
 #define FB_OFFSET(x, y) (((y) * 320 + (x)) >> 1)
 //#define printf(...)
@@ -20,7 +24,11 @@ uint8_t *framebuffer;
 void lcd_init(){
 	framebuffer = SCREEN_BASE_ADDRESS;
 	lcd_ingray();
-	memset(framebuffer, 0xff, 320*240/2);
+	memset(framebuffer, 0xaa, 320*240/2);
+	int y;
+	for(y = 0; y < 64*3; y++){
+		memset(framebuffer + FB_OFFSET(C_XO, y+C_YO), 0xff, 96*3/2);
+	}
 }
 /*static void n_set_pixel(int x, int y, uint8_t v){
 	uint8_t *base = framebuffer + FB_OFFSET(x, y);
@@ -35,14 +43,14 @@ static void n_set_84_pixel(int x, int y, uint8_t gray){
 	uint8_t d = gray << 4 | gray;
 	if(x & 1){
 		for(dy = 0; dy < 3; dy++){
-			int o = FB_OFFSET(x, y+dy);
+			int o = FB_OFFSET(x, y+dy) + C_OFFSET;
 			framebuffer[o+1] = d;
 			framebuffer[o] &= ~0x0f;
 			framebuffer[o] |= gray;
 		}
 	}else{
 		for(dy = 0; dy < 3; dy++){
-			int o = FB_OFFSET(x, y+dy);
+			int o = FB_OFFSET(x, y+dy) + C_OFFSET;
 			framebuffer[o] = d;
 			framebuffer[o+1] &= ~0xf0;
 			framebuffer[o+1] |= gray << 4;

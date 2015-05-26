@@ -1,6 +1,7 @@
 #include <os.h>
 #define K(x) &(KEY_NSPIRE_##x)
 #define J(x) &(KEY_84_##x)
+#define KEY_TABLE n_84_key_ar
 uint8_t mon = 0;
 t_key *n_key_ar[8][7] = {
 	{K(DOWN),	K(ENTER),	K(NEGATIVE),K(PERIOD),	K(0),	NULL,		K(EQU)},
@@ -37,7 +38,7 @@ uint8_t keypad_read(){
 			//t_key **k = n_key_ar[i];
 			int j;
 			for(j = 0; j < 8; j++){
-				if(n_84_key_ar[j][i] != NULL) o |= isKeyPressed(*(n_84_key_ar[j][i])) << j;
+				if(KEY_TABLE[j][i] != NULL) o |= isKeyPressed(*(KEY_TABLE[j][i])) << j;
 			}
 		}
 	}
