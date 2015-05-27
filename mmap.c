@@ -1,11 +1,10 @@
 #include <os.h>
-#include "drz80.h"
-extern struct DrZ80 ZCpu;
 
-#define PAGE(base, n) (base+(n)*0x4000)
+
+#define PAGE(base, n) ((base)+(n)*0x4000)
 #define FLASH_PAGE(n) PAGE(flash, n)
 #define RAM_PAGE(n) PAGE(ram, n)
-#define BANK(addr) banks[addr >> 14]
+#define BANK(addr) active_map[addr >> 14]
 
 typedef struct {
 	int active_page;
@@ -15,26 +14,28 @@ typedef struct {
 
 void mmap_out(uint8_t port, uint8_t val);
 void switch_bank(int b, uint8_t v);
+static void update_bank(membank *b, uint8_t v);
+
 uint8_t *flash;
 uint8_t *ram;
 
 membank banks[4];
+membank alt_banks[4];
+membank *active_map;
+
 void mmap_init(){
 	ram = calloc(0x20000, 1);
-	flash = calloc(0x200000, 1);
+	flash = calloc(0x180000, 1);
 	memset(banks, 0, sizeof(banks));
 	banks[0].addr = FLASH_PAGE(0);
 	banks[0].active_page = 0;
 	banks[0].is_ram = 0;
 	banks[3].is_ram = 1;
+	memcpy(alt_banks, banks, sizeof(banks));
+	active_map = banks;
 	mmap_out(5, 0);
 	mmap_out(6, 0);
 	mmap_out(7, 0);
-	//mmap_out(5, 3);
-	/*mmap_out(6, 1);
-	mmap_out(7, 2);
-	banks[3].addr = FLASH_PAGE(4);
-	banks[3].active_page = 4;*/
 }
 
 void mmap_end(){
@@ -46,11 +47,13 @@ uint8_t *mmap_z80_to_arm(uint16_t z80addr){
 	return BANK(z80addr).addr + (z80addr & 0x3FFF);
 }
 uint8_t *mmap_bank_for_addr(uint16_t z80addr){
+	//membank *b = &(BANK(z80addr));
 	//printf("bank %d (%s %02x) addr %04x\n", z80addr >> 14, b->is_ram ? "ram" : "flash", b->active_page, z80addr & 0x3FFF);
 	return BANK(z80addr).addr;
 }
 uint8_t *mmap_base_addr(uint16_t z80addr){
-	return mmap_bank_for_addr(z80addr) - 0x4000 * (z80addr >> 14);
+	return BANK(z80addr).addr - (z80addr & 0xc000);//0x4000 * (z80addr >> 14);
+	// The high two bits of the address are subtracted off to allow z80 addresses to remain consistent
 }
 
 int bfp(int p){
@@ -60,6 +63,10 @@ int bfp(int p){
 		case 7: return 2;
 	}
 	return 0;
+}
+
+void mmap_set_mode(uint8_t mode){
+	active_map = mode ? alt_banks : banks;
 }
 
 void mmap_out(uint8_t port, uint8_t val){
@@ -82,13 +89,25 @@ uint8_t mmap_in(uint8_t port){
 }
 
 void switch_bank(int b, uint8_t v){
+	update_bank(&banks[b], v);
+	if(b == 1){
+		update_bank(&alt_banks[1], v & 0xfe);
+		update_bank(&alt_banks[2], v | 0x01);
+		return;
+	}
+	if(b == 2){
+		memcpy(&alt_banks[3], &banks[b], sizeof(membank));
+		//update_bank(&alt_banks[3], v);
+	}
+}
+
+static void update_bank(membank *b, uint8_t v){
+	b->active_page = v;
 	if(v & 0x80){
-		banks[b].addr = RAM_PAGE(v & 0b111);
-		banks[b].active_page = v;
-		banks[b].is_ram = 1;
+		b->addr = RAM_PAGE(v & 0b111);
+		b->is_ram = 1;
 	}else{
-		banks[b].addr = FLASH_PAGE(v & 0x7f);
-		banks[b].active_page = v;
-		banks[b].is_ram = 0;
+		b->addr = FLASH_PAGE(v & 0x7f);
+		b->is_ram = 0;
 	}
 }

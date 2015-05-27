@@ -4,6 +4,7 @@
 #include "lcd.h"
 #include "keypad.h"
 #include "mmap.h"
+#include "io_misc.h"
 
 void cpu_init();
 unsigned int cpu_rebasePC(unsigned short x);
@@ -135,6 +136,8 @@ unsigned char cpu_in(unsigned short port){
 	switch(port){
 		case 0x01:
 		return keypad_read();
+		case 0x02: // status
+		return 0;//STATUS_NORMAL;
 		case 0x05:
 		case 0x06:
 		case 0x07:
@@ -146,28 +149,32 @@ unsigned char cpu_in(unsigned short port){
 		case 0x13:
 		return lcd_data_read();
 	}
+	printf("in %x\n", port);
 	return 0;
 }
 
 void cpu_out(unsigned short port, unsigned char val){
 	port &= 0xff;
-	//if(port == 1) printf("out %x %x\n", port, val);
 	switch(port){
 		case 0x01:
 		keypad_write(val);
-		break;
+		return;
+		case 0x04:
+		mmap_set_mode(val & 0x01);
+		return;
 		case 0x05:
 		case 0x06:
 		case 0x07:
 		mmap_out(port, val);
-		break;
+		return;
 		case 0x10:
 		case 0x12:
 		lcd_cmd(val);
-		break;
+		return;
 		case 0x11:
 		case 0x13:
 		lcd_data(val);
-		break;
+		return;
 	}
+	printf("out %x %x\n", port, val);
 }
