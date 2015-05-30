@@ -1,9 +1,31 @@
 #include <stdint.h>
-uint8_t mem_size = 3 | 2<<4;
-uint8_t mem_size_in(){
-	return mem_size;
-}
+#define STATUS_BATTERIES 1<<0
+#define STATUS_LCD_WAIT 1<<1
+#define STATUS_FLASH_UNLOCK 1<<2
+#define STATUS_HAS_USB 1<<5
+#define STATUS_LINK_ASSIST 1<<6
+#define STATUS_NOT_83 1<<7
+#define STATUS_NORMAL (STATUS_BATTERIES | STATUS_LCD_WAIT | STATUS_FLASH_UNLOCK | /*STATUS_HAS_USB | */STATUS_LINK_ASSIST | STATUS_NOT_83)
 
-void mem_size_out(uint8_t v){
-	mem_size = v;
+uint8_t mem_size = 3 | 2<<4;
+
+uint8_t default_in(uint8_t port){
+	switch(port){
+		case 0x02:
+		return STATUS_NORMAL;
+		case 0x21:
+		return mem_size;
+		case 0x55: // usb interrupts
+		return 0;
+		case 0x56: // individual usb interrupts
+		return 0x1f;
+	}
+	return 0;
+}
+void default_out(uint8_t port, uint8_t val){
+	switch(port){
+		case 0x21:
+		mem_size = val;
+		return;
+	}
 }

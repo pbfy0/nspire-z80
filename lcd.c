@@ -36,8 +36,42 @@ void lcd_init(){
 	*base &= ~(x & 1 ? 0x0f : 0xf0);
 	*base |= v;
 }*/
+void _n_set_84_pixel(int x, int y, uint8_t gray, uint32_t fb_a);
+asm(
+"\n"
+"_n_set_84_pixel:\n\t"
+	"stmfd sp!, {r4-r8}\n\t"
+	"mov r4, #480\n\t" // 320 * 3 / 2
+	"mla r3, r1, r4, r3\n\t"
+	"mov r4, #3\n\t"
+	"mul r4, r0, r4\n\t"
+	"add r3, r3, r4, asr #1\n\t"
+	"mov r4, r3\n\t"
+	"mov r5, #15\n\t"
+	"mov r6, r2, lsl #4\n\t"
+	"orr r6, r2\n\t"
+	"tst r0, #1\n\t"
+	"addne r3, #1\n\t"
+	"addeq r4, #1\n\t"
+	"lsleq r5, #4\n\t"
+	"lsleq r2, #4\n\t"
+	"mov r7, #3\n" // no \t
+	"loop_begin:\n\t"
+	"strb r6, [r3]\n\t"
+	"ldrb r8, [r4]\n\t"
+	"bic r8, r5\n\t"
+	"orr r8, r2\n\t"
+	"strb r8, [r4]\n\t"
+	"add r3, r3, #160\n\t"
+	"add r4, r4, #160\n\t"
+	"subs r7, r7, #1\n\t"
+	"bne loop_begin\n\t"
+	"ldmfd sp!, {r4-r8}\n\t"
+	"bx lr\n\t"
+);
 static void n_set_84_pixel(int x, int y, uint8_t gray){
-	int dy;
+	_n_set_84_pixel(x, y, gray, (uint32_t)framebuffer + C_OFFSET);
+	/*int dy;
 	x *= 3;
 	y *= 3;
 	uint8_t d = gray << 4 | gray;
@@ -55,7 +89,7 @@ static void n_set_84_pixel(int x, int y, uint8_t gray){
 			framebuffer[o+1] &= ~0xf0;
 			framebuffer[o+1] |= gray << 4;
 		}
-	}
+	}*/
 }
 static void set_pixel(int x, int y, uint8_t val){
 	//printf("set_pixel %d %d %d\n", x, y, val);

@@ -1,10 +1,2 @@
-#define STATUS_BATTERIES 1<<0
-#define STATUS_LCD_WAIT 1<<1
-#define STATUS_FLASH_UNLOCK 1<<2
-#define STATUS_HAS_USB 1<<5
-#define STATUS_LINK_ASSIST 1<<6
-#define STATUS_NOT_83 1<<7
-#define STATUS_NORMAL (STATUS_BATTERIES | STATUS_FLASH_UNLOCK | STATUS_HAS_USB/* | STATUS_LINK_ASSIST*/ | STATUS_NOT_83)
-
-uint8_t mem_size_in();
-void mem_size_out(uint8_t v);
+uint8_t default_in(uint8_t port);
+void default_out(uint8_t port, uint8_t val);

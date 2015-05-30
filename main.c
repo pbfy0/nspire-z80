@@ -5,6 +5,8 @@
 #include "keypad.h"
 #include "mmap.h"
 #include "io_misc.h"
+#include "interrupt.h"
+#include "z_interrupt.h"
 
 void cpu_init();
 unsigned int cpu_rebasePC(unsigned short x);
@@ -18,11 +20,13 @@ unsigned char cpu_in(unsigned short port);
 void cpu_out(unsigned short port, unsigned char val);
 void cpu_irq_callback();
 
+
 //#define printf(...)
 
 
 //uint8_t *flash;
 struct DrZ80 ZCpu;
+volatile uint8_t flag;
 
 int main(void){
 	FILE *romfile;
@@ -46,10 +50,16 @@ int main(void){
 	/*for(i = 0; i < 0x100; i++){
 		printf("%02x", cpu_read8(i));
 	}*/
+	interrupt_init();
 	while(1){
 		DrZ80Run(&ZCpu, 500000);
 		if(isKeyPressed(KEY_NSPIRE_ESC)) break;
+		if(flag){
+			printf("flag\n");
+			flag = 0;
+		}
 	}
+	interrupt_end();
 	mmap_end();
 	
 	return 0;
@@ -72,6 +82,7 @@ void cpu_init(){
 
 void cpu_irq_callback(){
 	printf("irq\n");
+	int_callback();
 }
 
 //void pdb(unsigned int pc){
@@ -136,8 +147,8 @@ unsigned char cpu_in(unsigned short port){
 	switch(port){
 		case 0x01:
 		return keypad_read();
-		case 0x02: // status
-		return 0;//STATUS_NORMAL;
+		case 0x04:
+		return int_id_in();
 		case 0x05:
 		case 0x06:
 		case 0x07:
@@ -150,7 +161,7 @@ unsigned char cpu_in(unsigned short port){
 		return lcd_data_read();
 	}
 	printf("in %x\n", port);
-	return 0;
+	return default_in(port);
 }
 
 void cpu_out(unsigned short port, unsigned char val){
@@ -158,6 +169,12 @@ void cpu_out(unsigned short port, unsigned char val){
 	switch(port){
 		case 0x01:
 		keypad_write(val);
+		return;
+		case 0x02:
+		int_ack_out(val);
+		return;
+		case 0x03:
+		int_mask_out(val);
 		return;
 		case 0x04:
 		mmap_set_mode(val & 0x01);
@@ -177,4 +194,5 @@ void cpu_out(unsigned short port, unsigned char val){
 		return;
 	}
 	printf("out %x %x\n", port, val);
+	default_out(port, val);
 }
