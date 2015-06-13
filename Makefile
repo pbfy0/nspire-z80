@@ -13,19 +13,19 @@ else
 endif
 EXE = nspire-z80.tns
 OBJS = $(patsubst %.c,%.o,$(wildcard *.c))
-DISTDIR = .
+DISTDIR = build
 vpath %.tns $(DISTDIR)
 
 all: $(EXE)
 
-%.o: %.c
-	$(GCC) $(GCCFLAGS) -c $<
-drz80.o:
-	$(AS) -c drz80.s
-$(EXE): $(OBJS) drz80.o
+$(DISTDIR)/%.o: %.c
+	$(GCC) $(GCCFLAGS) -c $< -o $@
+$(DISTDIR)/drz80.o:
+	$(AS) -c drz80.s -o $(DISTDIR)/drz80.o
+$(EXE): $(addprefix $(DISTDIR)/,$(OBJS)) $(DISTDIR)/drz80.o
 	mkdir -p $(DISTDIR)
 	$(LD) $(LDFLAGS) $^ -o $(DISTDIR)/$@
 
 clean:
-	rm -f *.o *.elf *.gdb
+	rm -f $(DISTDIR)/*.o $(DISTDIR)/*.elf $(DISTDIR)/*.gdb
 	rm -f $(DISTDIR)/$(EXE)

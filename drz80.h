@@ -66,7 +66,7 @@ struct DrZ80
   unsigned char Z80_NMI;
 };
 
-extern void DrZ80Run(struct DrZ80 *pcy,unsigned int cyc);
+extern int DrZ80Run(struct DrZ80 *pcy,unsigned int cyc);
 
 #ifdef __cplusplus
 } // End of extern "C"

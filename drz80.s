@@ -26,7 +26,7 @@
       .global DrZ80Ver
 	  
 	  .equiv INTERRUPT_MODE, 		0		;@0 = Use internal int handler, 1 = Use Mames int handler
-	  .equiv FAST_Z80SP,			1		;@0 = Use mem functions for stack pointer, 1 = Use direct mem pointer
+	  .equiv FAST_Z80SP,			0		;@0 = Use mem functions for stack pointer, 1 = Use direct mem pointer
 	  
 .if INTERRUPT_MODE
 	  .extern Interrupt
@@ -42,6 +42,10 @@ DrZ80Ver: .long 0x0001
 	@sub r0,z80pc,r0
 	@bl pdb
 	@ldmfd sp!,{r0-r12}
+	@stmfd sp!,{r0-r4}
+	@mov r0, z80_icount
+	@bl pdb
+	@ldmfd sp!,{r0-r4}
 	subs z80_icount,z80_icount,#\cycs
 	ldrplb r0,[z80pc],#1
 	ldrpl pc,[opcodes,r0, lsl #2]
@@ -1117,6 +1121,7 @@ MAIN_opcodes_POINTER2: .word MAIN_opcodes
 z80_execute_end:
 	;@ save registers in CPU context
 	stmia cpucontext,{z80pc-z80sp}			;@ save Z80 registers
+	mov r0,z80_icount
 	ldmia sp!,{r4-r12,pc}					;@ restore registers from stack and return to C code
 
 .if INTERRUPT_MODE

@@ -7,6 +7,7 @@
 #include "io_misc.h"
 #include "interrupt.h"
 #include "z_interrupt.h"
+#include "timer.h"
 
 void cpu_init();
 unsigned int cpu_rebasePC(unsigned short x);
@@ -45,17 +46,21 @@ int main(void){
 	lcd_init();
 	cpu_init();
 	//asm(" b .");
-	printf("%08x\n", ZCpu.Z80PC_BASE);
+	printf("%08x\n", ZCpu.Z80PC_BASE - (unsigned int)flash);
+	printf("%08x\n", ZCpu.Z80PC - (unsigned int)flash);
+	printf("%08x\n", cpu_read16(0));
 	//printf("%p\n", mmap_bank_for_addr(0));
 	/*for(i = 0; i < 0x100; i++){
 		printf("%02x", cpu_read8(i));
 	}*/
 	interrupt_init();
+	int cycs = next_timer();
 	while(1){
-		DrZ80Run(&ZCpu, 500000);
+		int cyce = DrZ80Run(&ZCpu, cycs);
+		cycs = timer_after(cyce);
 		if(isKeyPressed(KEY_NSPIRE_ESC)) break;
 		if(flag){
-			printf("flag\n");
+			printf("fire %02x\n", flag);
 			flag = 0;
 		}
 	}
@@ -77,7 +82,7 @@ void cpu_init(){
 	ZCpu.z80_out     =cpu_out;
 	ZCpu.z80_irq_callback = cpu_irq_callback;
 	ZCpu.Z80PC = cpu_rebasePC(0);
-	ZCpu.Z80SP = cpu_rebaseSP(0);
+	ZCpu.Z80SP = 0xffff;//cpu_rebaseSP(0xffff);
 }
 
 void cpu_irq_callback(){
@@ -85,13 +90,15 @@ void cpu_irq_callback(){
 	int_callback();
 }
 
-//void pdb(unsigned int pc){
-	//printf("pc(a) %02x v %04x\n", pc, cpu_read16(pc));
-//}
+void pdb(unsigned int pc){
+	printf("pc(a) %02x v %04x\n", pc, cpu_read16(pc));
+}
 
 unsigned int cpu_rebasePC(unsigned short x){
+	//if(x == 0) printf("reset\n");
 	//printf("rebasePC 0x%x\n", x);
 	//ZCpu.Z80PC_BASE = (unsigned int)flash;
+	mmap_check_endboot(x);
 	ZCpu.Z80PC_BASE = (unsigned int)mmap_base_addr(x);
 	//if(ZCpu.Z80PC_BASE + (x & 0x3FFF) != flash + x) printf("pc %08x %p\n", ZCpu.Z80PC_BASE + (x & 0x3FFF), flash + x);
 	//printf("pc %p %08x\n", mmap_bank_for_addr(x) + (x & 0x3FFF), ZCpu.Z80PC_BASE + x);
@@ -100,7 +107,7 @@ unsigned int cpu_rebasePC(unsigned short x){
 }
 
 unsigned int cpu_rebaseSP(unsigned short x){
-	//printf("rebaseSP 0x%x\n", x);
+	printf("rebaseSP 0x%x\n", x);
 	//ZCpu.Z80SP_BASE = (unsigned int)flash;
 	ZCpu.Z80SP_BASE = (unsigned int)mmap_base_addr(x);
 	//if(ZCpu.Z80SP_BASE + (x & 0x3FFF) != flash + x) printf("sp %08x %p\n", ZCpu.Z80SP_BASE + (x & 0x3FFF), flash + x);
@@ -144,6 +151,7 @@ void cpu_write8(unsigned char val, unsigned short idx){
 }*/
 unsigned char cpu_in(unsigned short port){
 	port &= 0xff;
+	//
 	switch(port){
 		case 0x01:
 		return keypad_read();
@@ -159,13 +167,15 @@ unsigned char cpu_in(unsigned short port){
 		case 0x11:
 		case 0x13:
 		return lcd_data_read();
+		case 0x20:
+		return cpu_freq_get();
 	}
-	printf("in %x\n", port);
 	return default_in(port);
 }
 
 void cpu_out(unsigned short port, unsigned char val){
 	port &= 0xff;
+	//
 	switch(port){
 		case 0x01:
 		keypad_write(val);
@@ -178,7 +188,8 @@ void cpu_out(unsigned short port, unsigned char val){
 		return;
 		case 0x04:
 		mmap_set_mode(val & 0x01);
-		return;
+		timer_freq_set((val >> 1) & 0b11);
+		break; // !!!
 		case 0x05:
 		case 0x06:
 		case 0x07:
@@ -192,7 +203,9 @@ void cpu_out(unsigned short port, unsigned char val){
 		case 0x13:
 		lcd_data(val);
 		return;
+		case 0x20:
+		cpu_freq_set(val);
+		return;
 	}
-	printf("out %x %x\n", port, val);
 	default_out(port, val);
 }

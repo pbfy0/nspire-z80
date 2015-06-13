@@ -22,12 +22,21 @@ struct keypad {
 	uint32_t n_rows_cols;
 	uint32_t int_stat;
 	uint32_t int_mask;
+	uint16_t kp_data[16];
+	uint32_t kp_gpio[4];
+	uint32_t tp_int_mask;
+	uint32_t tp_int_stat;
+};
+
+struct kp_bkp {
+	uint32_t int_mask;
+	uint32_t tp_int_mask;
 };
 
 uint32_t isr_backup;
 uint32_t ei_backup;
-uint32_t kpi_backup;
-struct keypad *keypad = (struct keypad *)KEYPAD_BASE;
+struct kp_bkp kp_bkp;
+struct keypad volatile *keypad = (struct keypad *)KEYPAD_BASE;
 uint32_t *patch_base;
 extern volatile uint8_t flag;
 
@@ -39,11 +48,12 @@ void interrupt_init(){
 	ei_backup = VIC_REG(0x10);
 	VIC_REG(0x14) = ~0; // disable all interrupts
 	VIC_REG(0x10) |= /*1<<19 | */1<<16; // timer 1, keypad
-	kpi_backup = keypad->int_mask;
+	kp_bkp.int_mask = keypad->int_mask;
+	kp_bkp.tp_int_mask = keypad->tp_int_mask;
 	keypad->int_mask = 1<<1;
+	keypad->tp_int_mask = 0;
 	*ISR_ADDR = (uint32_t) irq_handler;
 	patch_ndless_swi();
-	//asm(" b .");
 	uint8_t i = is_classic;
 	i ^= i;
 	is_touchpad;
@@ -53,16 +63,21 @@ void interrupt_end(){
 	irq_disable();
 	unpatch_ndless_swi();
 	*ISR_ADDR = isr_backup;
-	keypad->int_mask = kpi_backup;
+	keypad->int_mask = kp_bkp.int_mask;
+	keypad->tp_int_mask = kp_bkp.tp_int_mask;
 	VIC_REG(0x14) = ~0;
 	VIC_REG(0x10) = ei_backup;
 }
 
 static void __attribute__((interrupt("IRQ"))) irq_handler(){
 	//if(keypad->int_stat){
-		keypad->int_stat |= 1<<1;
+		//int x = KEY_REG(0x08);
+		//x ^= x;
+		//KEY_REG(0x08) = 0;
+		//KEY_REG(0x08) = 1<<1;
+		//flag = keypad->int_stat;
+		keypad->int_stat = 1<<1;
 		if(isKeyPressed(KEY_NSPIRE_MENU)){
-			flag = 1;
 			int_fire(1<<INT_ON);
 		}
 	//}
