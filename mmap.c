@@ -18,8 +18,8 @@ uint8_t normal = 0;
 
 void mmap_init(){
 	ram = calloc(0x20000, 1);
-	flash = calloc(0x180000, 1);
 	memset(banks, 0, sizeof(banks));
+	flash = calloc(0x200000, 1);
 	banks[0].addr = FLASH_PAGE(0x7f);
 	banks[0].active_page = 0x7f;
 	banks[0].is_ram = 0;
@@ -84,7 +84,7 @@ void mmap_set_mode(uint8_t mode){
 void mmap_out(uint8_t port, uint8_t val){
 	switch(port){
 		case 5:
-		banks[3].addr = RAM_PAGE(val);
+		banks[3].addr = RAM_PAGE(val);// & 0b111);
 		banks[3].active_page = val;
 		break;
 		case 6:

@@ -21,7 +21,7 @@ t_key *n_84_key_ar[8][7] = {
 	{J(UP),		J(MULTIPLY),J(9),		J(8),		J(7),	J(LOG),		J(WIND)},
 	{NULL,		J(DIVIDE),	J(LP),		J(RP),		J(COMMA),J(SQU),	J(YEQU)},
 	{NULL,		J(EXP),		J(TAN),		J(COS),		J(SIN),	J(INV),		J(2ND)},
-	{NULL,		J(CLEAR),	J(VARS),	J(PRGM),	J(APPS),J(APPS),	J(MATH)},
+	{NULL,		J(CLEAR),	J(VARS),	J(PRGM),	J(APPS),J(MATH),	J(MODE)},
 	{NULL,		NULL,		NULL,		J(STAT),	J(X),	J(ALPHA),	J(DEL)}
 };
 

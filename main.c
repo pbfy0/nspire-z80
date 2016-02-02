@@ -1,12 +1,11 @@
 #include <os.h>
 #include <stdint.h>
 #include "drz80.h"
-#include "lcd.h"
-#include "keypad.h"
-#include "mmap.h"
-#include "io_misc.h"
 #include "interrupt.h"
 #include "z_interrupt.h"
+#include "io.h"
+#include "mmap.h"
+#include "lcd.h"
 #include "timer.h"
 
 void cpu_init();
@@ -20,6 +19,10 @@ unsigned char cpu_in(unsigned short port);
 //static unsigned char cpu_in_(unsigned short port);
 void cpu_out(unsigned short port, unsigned char val);
 void cpu_irq_callback();
+
+uint8_t port_get(struct z80port *p);
+void port_set(struct z80port *p, uint8_t val);
+
 
 
 //#define printf(...)
@@ -42,33 +45,42 @@ int main(void){
 	mmap_init();
 	//flash = calloc(0x20000, 1);
 	fread(flash, sizeof(char), romsize, romfile);
+	fclose(romfile);
 	
 	lcd_init();
 	cpu_init();
+	
+	io_init();
 	//asm(" b .");
 	printf("%08x\n", ZCpu.Z80PC_BASE - (unsigned int)flash);
 	printf("%08x\n", ZCpu.Z80PC - (unsigned int)flash);
-	printf("%08x\n", cpu_read16(0));
+	//printf("%08x\n", cpu_read16(0));
 	//printf("%p\n", mmap_bank_for_addr(0));
 	/*for(i = 0; i < 0x100; i++){
 		printf("%02x", cpu_read8(i));
 	}*/
 	interrupt_init();
 	int cycs = next_timer();
+	int i = 0;
 	while(1){
 		int cyce = DrZ80Run(&ZCpu, cycs);
+		char *pc = (char *)ZCpu.Z80PC;
+		//int pcb = ZCpu.Z80PC - ZCpu.Z80PC_BASE;
+		//printf("%d %d %04x %02x%02x%02x%02x\n", i++, cyce, pcb, pc[0], pc[1], pc[2], pc[3]);//, ZCpu.Z80BC);
 		cycs = timer_after(cyce);
 		if(isKeyPressed(KEY_NSPIRE_ESC)) break;
 		if(flag){
-			printf("fire %02x\n", flag);
+			//printf("fire %02x\n", flag);
 			flag = 0;
 		}
 	}
+	lcd_end();
 	interrupt_end();
 	mmap_end();
 	
 	return 0;
 }
+
 
 void cpu_init(){
 	memset(&ZCpu, 0, sizeof(ZCpu));
@@ -86,7 +98,7 @@ void cpu_init(){
 }
 
 void cpu_irq_callback(){
-	printf("irq\n");
+	//printf("irq\n");
 	int_callback();
 }
 
@@ -131,16 +143,21 @@ unsigned char cpu_read8(unsigned short idx){
 }
 
 void cpu_write16(unsigned short val, unsigned short idx){
-	//printf("write16 0x%x 0x%x\n", idx, val);
-	//uint8_t *p = flash + idx;
 	uint8_t *p = mmap_z80_to_arm(idx);
-	*p++ = val & 0xff;
-	*p = val >> 8;
+	if(!((p >= flash && p < flash + 0x200000) || (p >= ram && p < ram + 0x20000)))
+		printf("Invalid memory access: %p %04x\n", p, idx);
+	//printf("write16 %08x (0x%04x) 0x%04x\n", p, idx, val);
+	//uint8_t *p = flash + idx;
+	p[0] = val & 0xff;
+	p[1] = val >> 8;
 }
 
 void cpu_write8(unsigned char val, unsigned short idx){
-	//printf("write8 0x%x 0x%x\n", idx, val);
-	*(mmap_z80_to_arm(idx)) = val;
+	uint8_t *p = mmap_z80_to_arm(idx);
+	if(!((p >= flash && p < flash + 0x200000) || (p >= ram && p < ram + 0x20000)))
+		printf("Invalid memory access: %p %04x\n", p, idx);
+	//printf("write8 %08x (0x%04x) 0x%02x\n", ptr, idx, val);
+	*p = val;
 	//flash[idx] = val;
 }
 /*unsigned char cpu_in(unsigned short port){
@@ -149,9 +166,38 @@ void cpu_write8(unsigned char val, unsigned short idx){
 	//if(port == 1) printf("in %x %x\n", port, x);
 	return x;
 }*/
-unsigned char cpu_in(unsigned short port){
-	port &= 0xff;
-	//
+unsigned char cpu_in(unsigned short pn){
+	struct z80port *p = &ports[(uint8_t)pn];
+	uint8_t v = port_get(p);
+	//printf("Read %02x from port %02x (%s)\n", v, p->number, p->name);
+	return v;
+}
+
+void cpu_out(unsigned short pn, unsigned char val){
+	struct z80port *p = &ports[(uint8_t)pn];
+	//register uint8_t *temp asm("r0");
+	//asm(" mov r0, r6");
+	//uint16_t zpc = temp - ZCpu.Z80PC_BASE;
+	port_set(p, val);
+	//printf("Wrote %02x to port %02x (%s)\n", val, p->number, p->name);
+	//temp = cpu_rebasePC(zpc);
+	//asm(" mov r6, r0"); // do not try this at home
+}
+
+uint8_t port_get(struct z80port *p){
+	if(p->in) return p->in();
+	if(p->n_in) return p->n_in(p->number);
+	if(p->ptr_val) return *(p->ptr_val);
+	return p->const_val;
+}
+
+void port_set(struct z80port *p, uint8_t val){
+	if(p->out) p->out(val);
+	else if(p->n_out) p->n_out(p->number, val);
+	else if(p->ptr_val) *(p->ptr_val) = val;
+}
+
+/*unsigned char cpu_in(unsigned short pn){
 	switch(port){
 		case 0x01:
 		return keypad_read();
@@ -172,6 +218,7 @@ unsigned char cpu_in(unsigned short port){
 	}
 	return default_in(port);
 }
+
 
 void cpu_out(unsigned short port, unsigned char val){
 	port &= 0xff;
@@ -208,4 +255,4 @@ void cpu_out(unsigned short port, unsigned char val){
 		return;
 	}
 	default_out(port, val);
-}
+}*/

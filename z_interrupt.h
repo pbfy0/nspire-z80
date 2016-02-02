@@ -10,6 +10,7 @@
 #define INT_CT3 1<<7
 
 void int_mask_out(uint8_t val);
+uint8_t int_mask_in();
 void int_ack_out(uint8_t val);
 uint8_t int_id_in();
 void int_fire(uint8_t num);

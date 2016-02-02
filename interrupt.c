@@ -77,8 +77,8 @@ static void __attribute__((interrupt("IRQ"))) irq_handler(){
 		//KEY_REG(0x08) = 1<<1;
 		//flag = keypad->int_stat;
 		keypad->int_stat = 1<<1;
-		if(isKeyPressed(KEY_NSPIRE_MENU)){
-			int_fire(1<<INT_ON);
+		if(isKeyPressed(KEY_84_CLEAR)){
+			int_fire(INT_ON);
 		}
 	//}
 }

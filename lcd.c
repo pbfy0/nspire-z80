@@ -6,29 +6,60 @@ int row_offset = 0;
 int n_bits = 8;
 uint8_t auto_mode = AUTO_DOWN;
 uint8_t enabled = TRUE;
-uint8_t video_mem[120*64/8];
+//uint8_t video_mem[120*64/8];
 uint8_t *framebuffer;
+uint8_t *bfb;
+volatile uint32_t *palette = (uint32_t *)0xC0000200;
 
-#define XY_TO_IDX(x, y) (y * 120 + x)
-#define SET_PX_XY(x, y, v) set_pixel(XY_TO_IDX(x, y), v)
-#define GET_PX_XY(x, y) get_pixel(XY_TO_IDX(x, y))
+#define XY_TO_IDX(x, y) ((y) * 120 + (x))
+#define XY_TO_FBO(x, y) ((y) * 320 + (x))
 #define MAX_COL ((n_bits == 8) ? 14 : 19)
 #define C_XO ((320-(96*3))/2)
 #define C_YO ((240-(64*3))/2)
 
-#define C_OFFSET FB_OFFSET(C_XO, C_YO)
+#define C_OFFSET XY_TO_FBO(C_XO, C_YO)
 
-#define FB_OFFSET(x, y) (((y) * 320 + (x)) >> 1)
+typedef uint8_t * byteptr;
+
+//#define FB_OFFSET(x, y) (((y) * 320 + (x)) >> 1)
 //#define printf(...)
 
+static uint16_t pack_rgb(uint8_t r, uint8_t g, uint8_t b){
+	return b >> 3 | g >> 3 << 5 | r >> 3 << 10;
+}
+
+static uint16_t pack_rgbp(uint32_t rgb){
+	return pack_rgb(rgb >> 16, (rgb >> 8) & 0xff, rgb & 0xff);
+}
+
 void lcd_init(){
-	framebuffer = SCREEN_BASE_ADDRESS;
-	lcd_ingray();
-	memset(framebuffer, 0xaa, 320*240/2);
+	//asm(" b .");
+	framebuffer = malloc(320*240); //SCREEN_BASE_ADDRESS;
+	//lcd_ingray();
+	memset(framebuffer, 0xff, 320*240);
+	*IO_LCD_CONTROL &= (unsigned)~0b00001110;
+	*IO_LCD_CONTROL |= (unsigned)0b00000110; // 8 bpp, palette
+	
+	bfb = *(volatile byteptr *)0xC0000010;
+	*(volatile byteptr *)0xC0000010 = framebuffer;
+	
+	
+	palette[0] = 0x0000ffff;
+	palette[1] = pack_rgbp(0xff0000);
+	//palette[1] = 0xffff;
+	palette[0xff >> 1] = pack_rgbp(0xaaaaaa) << 16; //0b0101011010110101 << 16;//
 	int y;
 	for(y = 0; y < 64*3; y++){
-		memset(framebuffer + FB_OFFSET(C_XO, y+C_YO), 0xff, 96*3/2);
+		memset(framebuffer + XY_TO_FBO(C_XO, y+C_YO), 0, 96*3);
 	}
+}
+
+void lcd_end(){
+	//IO_LCD_CONTROL &= ~0b00001110;
+	//IO_LCD_CONTROL |= 0b00000100; // 16 bit color
+	*(volatile byteptr *)0xC0000010 = bfb;
+	lcd_incolor();
+	free(framebuffer);
 }
 /*static void n_set_pixel(int x, int y, uint8_t v){
 	uint8_t *base = framebuffer + FB_OFFSET(x, y);
@@ -36,8 +67,32 @@ void lcd_init(){
 	*base &= ~(x & 1 ? 0x0f : 0xf0);
 	*base |= v;
 }*/
+//uint16_t px_offsets[9] = {0, 1, 2, 320, 321, 322, 640, 641, 642};
+asm(
+"\n"
+".align 2\n"
+"px_offsets:\n\t"
+	".hword 0, 1, 2, 320, 321, 322, 640, 641, 642\n\t"
+);
+
 void _n_set_84_pixel(int x, int y, uint8_t gray, uint32_t fb_a);
 asm(
+"\n"
+".align 4\n"
+"_n_set_84_pixel:\n"
+"	push {r4, lr}\n"
+"	mov r4, #320\n"
+"	mla r3, r1, r4, r3\n"
+"	add r3, r0\n"
+"	adr r4, px_offsets\n"
+"	mov r0, #18\n"
+"1:	subs r0, #2\n"
+"	ldrh r1, [r4, r0]\n"
+"	strb r2, [r3, r1]\n"
+"	bne 1b\n"
+"	pop {r4, pc}\n"
+);
+/*asm(
 "\n"
 "_n_set_84_pixel:\n\t"
 	"stmfd sp!, {r4-r8}\n\t"
@@ -56,7 +111,7 @@ asm(
 	"lsleq r5, #4\n\t"
 	"lsleq r2, #4\n\t"
 	"mov r7, #3\n" // no \t
-	"loop_begin:\n\t"
+"loop_begin:\n\t"
 	"strb r6, [r3]\n\t"
 	"ldrb r8, [r4]\n\t"
 	"bic r8, r5\n\t"
@@ -68,9 +123,9 @@ asm(
 	"bne loop_begin\n\t"
 	"ldmfd sp!, {r4-r8}\n\t"
 	"bx lr\n\t"
-);
+);*/
 static void n_set_84_pixel(int x, int y, uint8_t gray){
-	_n_set_84_pixel(x, y, gray, (uint32_t)framebuffer + C_OFFSET);
+	_n_set_84_pixel(x*3, y*3, gray, (uint32_t)framebuffer + C_OFFSET);
 	/*int dy;
 	x *= 3;
 	y *= 3;
@@ -93,17 +148,12 @@ static void n_set_84_pixel(int x, int y, uint8_t gray){
 }
 static void set_pixel(int x, int y, uint8_t val){
 	//printf("set_pixel %d %d %d\n", x, y, val);
-	if(y < 64 && x < 96) n_set_84_pixel(x, y, val ? 0x0 : 0xf);
-	int n = XY_TO_IDX(x, y);
-	if(val){
-		video_mem[n >> 3] |= 1<<(n & 0b111);
-	}else{
-		video_mem[n >> 3] &= ~(n & 0b111);
-	}
+	if(y < 64 && x < 96) n_set_84_pixel(x, y, val ? (n_bits == 6 ? 2 : 1) : 0);
+	//int n = XY_TO_IDX(x, y);
 }
 static uint8_t get_pixel(int x, int y){
-	int n = XY_TO_IDX(x, y);
-	return (video_mem[n >> 3] & 1<<(n & 0b111)) ? 1 : 0;
+	//int n = XY_TO_IDX(x, y);
+	return framebuffer[C_OFFSET + XY_TO_FBO(x, y)];//(video_mem[n >> 3] & 1<<(n & 0b111)) ? 1 : 0;
 }
 
 void lcd_cmd(uint8_t cmd){
@@ -117,13 +167,20 @@ void lcd_cmd(uint8_t cmd){
 		//printf("row %d\n", cur_row);
 	}
 	if(cmd >= 0xC0){
+		int black = (cmd - 0xC0) >> 1;
+		int white = 0xff - (black >> 1);
+		palette[0] = pack_rgb(black, black, black) << 16 | pack_rgb(white, white, white);
 		// contrast
 		return;
 	}
 	switch(cmd){
 		case BIT_6:
+			n_bits = 6;
+			printf("6 bit mode\n");
+		break;
 		case BIT_8:
-			n_bits = cmd ? 8 : 6;
+			n_bits = 8;
+			printf("8 bit mode\n");
 			//printf("%d bits\n", n_bits);
 		break;
 		case LCD_ENABLE:
@@ -157,6 +214,7 @@ void lcd_data(uint8_t data){
 	int y = cur_row;
 	for(i = 0; i < n_bits; i++){
 		set_pixel(x + i, y & 0x3f, data & (1<<(n_bits-1-i)));
+		if(i == 7 && data & (1<<(n_bits-1-i))) printf("hi\n");
 	}
 	switch(auto_mode){
 		case AUTO_UP:
@@ -172,6 +230,7 @@ void lcd_data(uint8_t data){
 		case AUTO_RIGHT:
 			cur_col++;
 			if(cur_col == MAX_COL + 1) cur_col = 0;
+			if(cur_col == 32) cur_col = 0;
 		break;
 	}
 }

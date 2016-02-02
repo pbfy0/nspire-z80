@@ -3,7 +3,7 @@ GCC = nspire-gcc
 AS = nspire-as
 GXX=nspire-g++
 LD = nspire-ld-bflt
-GCCFLAGS = -Wall -W -marm
+GCCFLAGS = -Wall -W -marm -Wno-braces
 LDFLAGS =
 ifeq ($(DEBUG),FALSE)
 	GCCFLAGS += -O3

@@ -13,14 +13,18 @@ void int_mask_out(uint8_t val){
 	ints_enabled = val;
 	timer_set_enabled((val >> 1) & 0b11);
 	ints_firing &= val;
-	if(val & INT_ON) printf("on ");
+	/*if(val & INT_ON) printf("on ");
 	if(val & INT_ON) printf("hwt1 ");
 	if(val & INT_ON) printf("hwt2 ");
 	if(val & INT_ON) printf("link ");
 	if(val & INT_ON) printf("ct1 ");
 	if(val & INT_ON) printf("ct2 ");
 	if(val & INT_ON) printf("ct3 ");
-	printf("\n");
+	printf("\n");*/
+}
+
+uint8_t int_mask_in(){
+	return ints_enabled & ~(1<<3);
 }
 
 void int_ack_out(uint8_t val){
@@ -30,7 +34,7 @@ void int_ack_out(uint8_t val){
 
 uint8_t int_id_in(){
 	//printf("int_id_in %02x\n", ints_firing);
-	return ints_firing | (isKeyPressed(KEY_NSPIRE_MENU) ? 1<<3 : 0);
+	return ints_firing | (isKeyPressed(KEY_84_CLEAR) ? 0 : 1<<3);
 }
 
 void int_fire(uint8_t num){

@@ -20,4 +20,9 @@
         <File name="z_interrupt.c" />
         <File name="z_interrupt.h" />
     </Project>
+    <Project name="nspire-screenshot">
+        <File name="C:\Users\Paul\Documents\GitHub\nspire-screenshot\.gitattributes" />
+        <File name="C:\Users\Paul\Documents\GitHub\nspire-screenshot\main.c" />
+        <File name="C:\Users\Paul\Documents\GitHub\nspire-screenshot\Makefile" />
+    </Project>
 </NotepadPlus>

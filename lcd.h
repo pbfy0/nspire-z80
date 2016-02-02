@@ -1,4 +1,5 @@
 void lcd_init();
+void lcd_end();
 void lcd_cmd(uint8_t);
 void lcd_data(uint8_t);
 uint8_t lcd_cmd_read();
