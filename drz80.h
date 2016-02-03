@@ -68,6 +68,8 @@ struct DrZ80
 
 extern int DrZ80Run(struct DrZ80 *pcy,unsigned int cyc);
 
+#define Z80_HALT (1<<2)
+
 #ifdef __cplusplus
 } // End of extern "C"
 #endif

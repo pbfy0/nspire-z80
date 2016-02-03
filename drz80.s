@@ -491,6 +491,8 @@ DrZ80Ver: .long 0x0001
 	mov r0,z80sp
 	readmem16
 	add z80sp,z80sp,#2
+	lsl z80sp,#16
+	lsr z80sp,#16
 .endif
 .endm
 
@@ -510,6 +512,8 @@ DrZ80Ver: .long 0x0001
 .else
 	mov r0,\reg,lsr #16
 	sub z80sp,z80sp,#2
+	lsl z80sp,#16
+	lsr z80sp,#16
 	mov r1,z80sp
 	writemem16
 .endif
@@ -708,6 +712,8 @@ DrZ80Ver: .long 0x0001
 	strb r0,[z80sp,#-1]!
 .else
 	sub z80sp,z80sp,#2
+	lsl z80sp,#16
+	lsr z80sp,#16
 	mov r1,z80sp
 	writemem16
 .endif
@@ -1166,6 +1172,8 @@ DoInterrupt:
 	strb r0,[z80sp,#-1]!
 .else
 	sub z80sp,z80sp,#2
+	lsl z80sp,#16
+	lsr z80sp,#16
 	mov r1,z80sp
 	writemem16
 .endif
@@ -1215,6 +1223,8 @@ DoInterrupt_mode0:
 	strb r0,[z80sp,#-1]!
 .else
 	sub z80sp,z80sp,#2
+	lsl z80sp,#16
+	lsr z80sp,#16
 	mov r1,z80sp
 	writemem16
 	ldr r2,[cpucontext, #z80irqvector]
@@ -1250,6 +1260,8 @@ DoInterrupt_mode1:
 	strb r0,[z80sp,#-1]!
 .else
 	sub z80sp,z80sp,#2
+	lsl z80sp,#16
+	lsr z80sp,#16
 	mov r1,z80sp
 	writemem16
 .endif
@@ -1268,6 +1280,8 @@ DoInterrupt_mode2:
 	strb r0,[z80sp,#-1]!
 .else
 	sub z80sp,z80sp,#2
+	lsl z80sp,#16
+	lsr z80sp,#16
 	mov r1,z80sp
 	writemem16
 .endif
@@ -4292,6 +4306,8 @@ opcode_3_2:
 ;@INC SP
 opcode_3_3:
 	add z80sp,z80sp,#1
+	lsl z80sp,#16
+	lsr z80sp,#16
 	fetch 6
 ;@INC (HL)
 opcode_3_4:
@@ -4342,6 +4358,8 @@ opcode_3_A:
 ;@DEC SP
 opcode_3_B:
 	sub z80sp,z80sp,#1
+	lsl z80sp,#16
+	lsr z80sp,#16
 	fetch 6
 ;@INC A
 opcode_3_C:
@@ -5314,6 +5332,8 @@ opcode_F_1:
 	mov r0,z80sp
 	readmem16
 	add z80sp,z80sp,#2
+	lsl z80sp,#16
+	lsr z80sp,#16
 	and z80a,r0,#0xFF00
 	mov z80a,z80a,lsl#16
 	and z80f,r0,#0xFF
@@ -5352,6 +5372,8 @@ opcode_F_5:
 	ldrb r0,[r0,z80f]
 	orr r0,r0,z80a,lsr#16
 	sub z80sp,z80sp,#2
+	lsl z80sp,#16
+	lsr z80sp,#16
 	mov r1,z80sp
 	writemem16
 .endif
@@ -7170,6 +7192,8 @@ opcode_DD_E1:
 	readmem16
 	ldmfd sp!,{z80xx}
 	add z80sp,z80sp,#2
+	lsl z80sp,#16
+	lsr z80sp,#16
 .endif
 	strh r0,[z80xx,#2]
 	fetch 14
@@ -7325,6 +7349,8 @@ opcode_ED_4D:
 	mov r0,z80sp
 	readmem16
 	add z80sp,z80sp,#2
+	lsl z80sp,#16
+	lsr z80sp,#16
 .endif
 	rebasepc
 	fetch 14

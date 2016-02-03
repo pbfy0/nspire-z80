@@ -148,12 +148,12 @@ static void n_set_84_pixel(int x, int y, uint8_t gray){
 }
 static void set_pixel(int x, int y, uint8_t val){
 	//printf("set_pixel %d %d %d\n", x, y, val);
-	if(y < 64 && x < 96) n_set_84_pixel(x, y, val ? (n_bits == 6 ? 2 : 1) : 0);
+	if(y < 64 && x < 96) n_set_84_pixel(x, y, val ? 1 : 0);
 	//int n = XY_TO_IDX(x, y);
 }
 static uint8_t get_pixel(int x, int y){
 	//int n = XY_TO_IDX(x, y);
-	return framebuffer[C_OFFSET + XY_TO_FBO(x, y)];//(video_mem[n >> 3] & 1<<(n & 0b111)) ? 1 : 0;
+	return framebuffer[C_OFFSET + XY_TO_FBO(x*3, y*3)] && 1;//(video_mem[n >> 3] & 1<<(n & 0b111)) ? 1 : 0;
 }
 
 void lcd_cmd(uint8_t cmd){
@@ -176,11 +176,11 @@ void lcd_cmd(uint8_t cmd){
 	switch(cmd){
 		case BIT_6:
 			n_bits = 6;
-			printf("6 bit mode\n");
+			//printf("6 bit mode\n");
 		break;
 		case BIT_8:
 			n_bits = 8;
-			printf("8 bit mode\n");
+			//printf("8 bit mode\n");
 			//printf("%d bits\n", n_bits);
 		break;
 		case LCD_ENABLE:
@@ -208,14 +208,8 @@ uint8_t lcd_cmd_read(){
 	v |= (n_bits == 8) << 6;
 	return v;
 }
-void lcd_data(uint8_t data){
-	int i;
-	int x = cur_col * n_bits;
-	int y = cur_row;
-	for(i = 0; i < n_bits; i++){
-		set_pixel(x + i, y & 0x3f, data & (1<<(n_bits-1-i)));
-		if(i == 7 && data & (1<<(n_bits-1-i))) printf("hi\n");
-	}
+
+void lcd_auto_move(){
 	switch(auto_mode){
 		case AUTO_UP:
 			cur_row--;
@@ -233,6 +227,20 @@ void lcd_data(uint8_t data){
 			if(cur_col == 32) cur_col = 0;
 		break;
 	}
+
+}
+void lcd_data(uint8_t data){
+	int i;
+	int x = cur_col * n_bits;
+	int y = cur_row;
+	for(i = 0; i < n_bits; i++){
+		set_pixel(x + i, y & 0x3f, data & (1<<(n_bits-1-i)));
+	}
+	/*if(data && !isKeyPressed(KEY_84_ALPHA)){
+		while(!isKeyPressed(KEY_84_2ND));
+		while(isKeyPressed(KEY_84_2ND));
+	}*/
+	lcd_auto_move();
 }
 
 uint8_t lcd_data_read(){
@@ -240,8 +248,11 @@ uint8_t lcd_data_read(){
 	int x = cur_col * n_bits;
 	int y = cur_row;
 	int i;
-	for(i = 0; i < 8; i++){
-		t |= get_pixel(x + i, y) << i;
+	for(i = 0; i < n_bits; i++){
+		t <<= 1;
+		t |= get_pixel(x + i, y);
 	}
+	//lcd_auto_move();
+	//if(t) printf("hi\n");
 	return t;
 }

@@ -60,14 +60,18 @@ int main(void){
 		printf("%02x", cpu_read8(i));
 	}*/
 	interrupt_init();
-	int cycs = next_timer();
+	int cycs = timer_after(0);
 	int i = 0;
+	
+	timer_set_enabled(1);
+	timer_freq_set(3);
 	while(1){
 		int cyce = DrZ80Run(&ZCpu, cycs);
+		//printf("%d\n", cyce);
 		char *pc = (char *)ZCpu.Z80PC;
 		//int pcb = ZCpu.Z80PC - ZCpu.Z80PC_BASE;
 		//printf("%d %d %04x %02x%02x%02x%02x\n", i++, cyce, pcb, pc[0], pc[1], pc[2], pc[3]);//, ZCpu.Z80BC);
-		cycs = timer_after(cyce);
+		cycs = timer_after(cycs == cyce ? 100 : cycs - cyce);
 		if(isKeyPressed(KEY_NSPIRE_ESC)) break;
 		if(flag){
 			//printf("fire %02x\n", flag);
