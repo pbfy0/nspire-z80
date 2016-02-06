@@ -81,7 +81,7 @@ void mmap_set_mode(uint8_t mode){
 	active_map = mode ? alt_banks : banks;
 }
 
-void mmap_out(uint8_t port, uint8_t val){
+void mmap_out(uint8_t val, uint8_t port){
 	switch(port){
 		case 5:
 		banks[3].addr = RAM_PAGE(val);// & 0b111);

@@ -2,11 +2,15 @@
 #pragma once
 struct z80port {
 	uint8_t number;
-	void (*out)(uint8_t val);
-	uint8_t (*in)();
+	union {
+		void (*r)(uint8_t val);
+		void (*n)(uint8_t val, uint8_t port);
+	} out;
 	
-	void (*n_out)(uint8_t port, uint8_t val);
-	uint8_t (*n_in)(uint8_t port);
+	union {
+		uint8_t (*r)();
+		uint8_t (*n)(uint8_t port);
+	} in;
 	
 	uint8_t *ptr_val;
 	uint8_t const_val;

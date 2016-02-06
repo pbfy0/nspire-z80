@@ -34,7 +34,7 @@ void int_ack_out(uint8_t val){
 
 uint8_t int_id_in(){
 	//printf("int_id_in %02x\n", ints_firing);
-	return ints_firing | (isKeyPressed(KEY_84_CLEAR) ? 0 : 1<<3);
+	return ints_firing | (isKeyPressed(KEY_NSPIRE_HOME) ? 0 : 1<<3);
 }
 
 void int_fire(uint8_t num){

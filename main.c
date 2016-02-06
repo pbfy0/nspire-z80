@@ -137,7 +137,7 @@ unsigned short cpu_read16(unsigned short idx){
 	//uint8_t *p = flash+idx;
 	//if(mmap_z80_to_arm(idx) != flash+idx) printf("read16 0x%x\n", idx);
 	uint8_t *p = mmap_z80_to_arm(idx);
-	return *p | *(p+1) << 8;
+	return p[0] | p[1] << 8;
 }
 unsigned char cpu_read8(unsigned short idx){
 	//printf("read8 0x%x\n", idx);
@@ -189,74 +189,14 @@ void cpu_out(unsigned short pn, unsigned char val){
 }
 
 uint8_t port_get(struct z80port *p){
-	if(p->in) return p->in();
-	if(p->n_in) return p->n_in(p->number);
+	if(p->in.n) return p->in.n(p->number);
+	//if(p->n_in) return p->n_in(p->number);
 	if(p->ptr_val) return *(p->ptr_val);
 	return p->const_val;
 }
 
 void port_set(struct z80port *p, uint8_t val){
-	if(p->out) p->out(val);
-	else if(p->n_out) p->n_out(p->number, val);
+	if(p->out.n) p->out.n(val, p->number);
+	//else if(p->n_out) p->n_out(p->number, val);
 	else if(p->ptr_val) *(p->ptr_val) = val;
 }
-
-/*unsigned char cpu_in(unsigned short pn){
-	switch(port){
-		case 0x01:
-		return keypad_read();
-		case 0x04:
-		return int_id_in();
-		case 0x05:
-		case 0x06:
-		case 0x07:
-		return mmap_in(port);
-		case 0x10:
-		case 0x12:
-		return lcd_cmd_read();
-		case 0x11:
-		case 0x13:
-		return lcd_data_read();
-		case 0x20:
-		return cpu_freq_get();
-	}
-	return default_in(port);
-}
-
-
-void cpu_out(unsigned short port, unsigned char val){
-	port &= 0xff;
-	//
-	switch(port){
-		case 0x01:
-		keypad_write(val);
-		return;
-		case 0x02:
-		int_ack_out(val);
-		return;
-		case 0x03:
-		int_mask_out(val);
-		return;
-		case 0x04:
-		mmap_set_mode(val & 0x01);
-		timer_freq_set((val >> 1) & 0b11);
-		break; // !!!
-		case 0x05:
-		case 0x06:
-		case 0x07:
-		mmap_out(port, val);
-		return;
-		case 0x10:
-		case 0x12:
-		lcd_cmd(val);
-		return;
-		case 0x11:
-		case 0x13:
-		lcd_data(val);
-		return;
-		case 0x20:
-		cpu_freq_set(val);
-		return;
-	}
-	default_out(port, val);
-}*/

@@ -8,10 +8,10 @@ t_key *n_key_ar[8][7] = {
 	{K(LEFT),	K(PLUS),	K(3),		K(2),		K(1),	K(FLAG),	K(TRIG)},
 	{K(RIGHT),	K(MINUS),	K(6),		K(5),		K(4),	K(EXP),		K(EE)},
 	{K(UP),		K(MULTIPLY),K(9),		K(8),		K(7),	K(TENX),	K(FRAC)},
-	{NULL,		K(DIVIDE),	K(LP),		K(RP),		K(COMMA),K(SQU),	K(EQU)},
+	{NULL,		K(DIVIDE),	K(LP),		K(RP),		K(COMMA),K(SQU),	K(A)},
 	{NULL,		K(eEXP),	K(TAN),		K(COS),		K(SIN),	K(QUESEXCL),K(CTRL)},
 	{NULL,		K(RET),		K(VAR),		K(SCRATCHPAD),K(DOC),K(MENU),	K(TAB)},
-	{NULL,		NULL,		NULL,		K(PI),		NULL,	K(SHIFT),	K(DEL)}
+	{NULL,		NULL,		NULL,		K(PI),		K(X),	K(SHIFT),	K(DEL)}
 };
 
 t_key *n_84_key_ar[8][7] = {
