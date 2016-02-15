@@ -1,7 +1,7 @@
 #include <os.h>
 #define K(x) &(KEY_NSPIRE_##x)
 #define J(x) &(KEY_84_##x)
-#define KEY_TABLE n_key_ar
+#define KEY_TABLE n_84_key_ar
 uint8_t mon = 0;
 t_key *n_key_ar[8][7] = {
 	{K(DOWN),	K(ENTER),	K(NEGATIVE),K(PERIOD),	K(0),	NULL,		K(EQU)},

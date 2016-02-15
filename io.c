@@ -10,6 +10,7 @@
 #include "io.h"
 
 #include "lcd.h"
+#include "cselcd.h"
 #include "keypad.h"
 #include "mmap.h"
 #include "io_misc.h"
@@ -66,20 +67,39 @@ void io_init(){
 	ports[0x06].in.n = 
 	ports[0x07].in.n = mmap_in;
 	
+	ports[0x0E].name = "memory page A high bits";
+	ports[0x0F].name = "memory page B high bits";
+	ports[0x0E].out.n = 
+	ports[0x0F].out.n = mmap_hi_out;
+	ports[0x0E].in.n = 
+	ports[0x0F].in.n = mmap_hi_in;
+	
 	ports[0x10].name =
 	ports[0x12].name = "lcd command";
+#ifndef USE_CSE
 	ports[0x10].in.r = 
 	ports[0x12].in.r = lcd_cmd_read;
 	ports[0x10].out.r = 
 	ports[0x12].out.r = lcd_cmd;
+#else
+	ports[0x10].out.r = 
+	ports[0x12].out.r = cselcd_ctrl_out;
+#endif
 	
 	
 	ports[0x11].name = 
 	ports[0x13].name = "lcd data";
+#ifndef USE_CSE
 	ports[0x11].in.r = 
 	ports[0x13].in.r = lcd_data_read;
 	ports[0x11].out.r = 
 	ports[0x13].out.r = lcd_data;
+#else
+	ports[0x11].in.r = 
+	ports[0x13].in.r = cselcd_data_in;
+	ports[0x11].out.r = 
+	ports[0x13].out.r = cselcd_data_out;
+#endif
 	
 	ports[0x14].name = "flash unlock";
 	ports[0x14].ptr_val = &flash_unlocked; // really should be & 1

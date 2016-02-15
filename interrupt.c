@@ -1,5 +1,7 @@
 #include "interrupt.h"
 #include "z_interrupt.h"
+static const t_key KEY_NSPIRE_ON        = KEY_(0x10, 0x200);
+
 static void __attribute__((interrupt("IRQ"))) irq_handler();
 struct timer {
 	uint32_t load;
@@ -77,7 +79,7 @@ static void __attribute__((interrupt("IRQ"))) irq_handler(){
 		//KEY_REG(0x08) = 1<<1;
 		//flag = keypad->int_stat;
 		keypad->int_stat = 1<<1;
-		if(isKeyPressed(KEY_NSPIRE_HOME)){
+		if(isKeyPressed(KEY_NSPIRE_ON)){
 			int_fire(INT_ON);
 		}
 	//}

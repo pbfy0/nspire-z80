@@ -47,7 +47,11 @@ int main(void){
 	fread(flash, sizeof(char), romsize, romfile);
 	fclose(romfile);
 	
+#ifdef USE_CSE
+	cselcd_init();
+#else
 	lcd_init();
+#endif
 	cpu_init();
 	
 	io_init();
@@ -69,8 +73,9 @@ int main(void){
 		int cyce = DrZ80Run(&ZCpu, cycs);
 		//printf("%d\n", cyce);
 		char *pc = (char *)ZCpu.Z80PC;
-		//int pcb = ZCpu.Z80PC - ZCpu.Z80PC_BASE;
-		//printf("%d %d %04x %02x%02x%02x%02x\n", i++, cyce, pcb, pc[0], pc[1], pc[2], pc[3]);//, ZCpu.Z80BC);
+		int pcb = ZCpu.Z80PC - ZCpu.Z80PC_BASE;
+		if(isKeyPressed(KEY_NSPIRE_SHIFT))
+			printf("%d %d %02x %04x %02x%02x%02x%02x\n", i++, cyce, mmap_get_active_page(ZCpu.Z80PC), pcb, pc[0], pc[1], pc[2], pc[3]);//, ZCpu.Z80BC);
 		cycs = timer_after(cycs == cyce ? 100 : cycs - cyce);
 		if(isKeyPressed(KEY_NSPIRE_ESC)) break;
 		if(flag){
@@ -78,7 +83,11 @@ int main(void){
 			flag = 0;
 		}
 	}
+#ifdef USE_CSE
+	cselcd_end();
+#else
 	lcd_end();
+#endif
 	interrupt_end();
 	mmap_end();
 	
@@ -148,7 +157,7 @@ unsigned char cpu_read8(unsigned short idx){
 
 void cpu_write16(unsigned short val, unsigned short idx){
 	uint8_t *p = mmap_z80_to_arm(idx);
-	if(!((p >= flash && p < flash + 0x200000) || (p >= ram && p < ram + 0x20000)))
+	if(!((p >= flash && p < flash + 0x400000) || (p >= ram && p < ram + 0x20000)))
 		printf("Invalid memory access: %p %04x\n", p, idx);
 	//printf("write16 %08x (0x%04x) 0x%04x\n", p, idx, val);
 	//uint8_t *p = flash + idx;
@@ -158,7 +167,7 @@ void cpu_write16(unsigned short val, unsigned short idx){
 
 void cpu_write8(unsigned char val, unsigned short idx){
 	uint8_t *p = mmap_z80_to_arm(idx);
-	if(!((p >= flash && p < flash + 0x200000) || (p >= ram && p < ram + 0x20000)))
+	if(!((p >= flash && p < flash + 0x400000) || (p >= ram && p < ram + 0x20000)))
 		printf("Invalid memory access: %p %04x\n", p, idx);
 	//printf("write8 %08x (0x%04x) 0x%02x\n", ptr, idx, val);
 	*p = val;
@@ -173,7 +182,7 @@ void cpu_write8(unsigned char val, unsigned short idx){
 unsigned char cpu_in(unsigned short pn){
 	struct z80port *p = &ports[(uint8_t)pn];
 	uint8_t v = port_get(p);
-	//printf("Read %02x from port %02x (%s)\n", v, p->number, p->name);
+	if(isKeyPressed(KEY_NSPIRE_SHIFT) || (p->number >= 0x30 && p->number <= 0x38)) printf("Read %02x from port %02x (%s)\n", v, p->number, p->name);
 	return v;
 }
 
@@ -183,7 +192,7 @@ void cpu_out(unsigned short pn, unsigned char val){
 	//asm(" mov r0, r6");
 	//uint16_t zpc = temp - ZCpu.Z80PC_BASE;
 	port_set(p, val);
-	//printf("Wrote %02x to port %02x (%s)\n", val, p->number, p->name);
+	if(isKeyPressed(KEY_NSPIRE_SHIFT) || (p->number >= 0x30 && p->number <= 0x38)) printf("Wrote %02x to port %02x (%s)\n", val, p->number, p->name);
 	//temp = cpu_rebasePC(zpc);
 	//asm(" mov r6, r0"); // do not try this at home
 }
