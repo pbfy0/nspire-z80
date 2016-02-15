@@ -27,3 +27,10 @@ uint16_t mmap_get_active_page(uint16_t z80addr);
 
 extern uint8_t *flash;
 extern uint8_t *ram;
+
+#ifdef USE_CSE
+#define FLASH_SIZE 0x400000
+#else
+#define FLASH_SIZE 0x200000
+#endif
+#define RAM_SIZE 0x20000

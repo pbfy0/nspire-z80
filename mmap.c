@@ -8,11 +8,9 @@
 
 #ifdef USE_CSE
 #define BOOT_PAGE 0xff
-#define FLASH_SIZE 0x400000
 #define HI_MASK 0x01
 #else
 #define BOOT_PAGE 0x7f
-#define FLASH_SIZE 0x200000
 #define HI_MASK 0x00
 #endif
 

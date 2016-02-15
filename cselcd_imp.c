@@ -100,7 +100,7 @@ void cselcd_i_data_out(uint16_t val){
 }
 
 uint16_t cselcd_i_data_in(){
-	uint16_t v = cse_framebuffer[cselcd_pos_y*320+cselcd_pos_x]
+	uint16_t v = cse_framebuffer[cselcd_pos_y*320+cselcd_pos_x];
 	return cselcd_bgr ? v : swaprb(v);
 }
 

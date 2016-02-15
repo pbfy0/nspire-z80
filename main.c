@@ -157,7 +157,7 @@ unsigned char cpu_read8(unsigned short idx){
 
 void cpu_write16(unsigned short val, unsigned short idx){
 	uint8_t *p = mmap_z80_to_arm(idx);
-	if(!((p >= flash && p < flash + 0x400000) || (p >= ram && p < ram + 0x20000)))
+	if(!((p >= flash && p < flash + FLASH_SIZE) || (p >= ram && p < ram + RAM_SIZE)))
 		printf("Invalid memory access: %p %04x\n", p, idx);
 	//printf("write16 %08x (0x%04x) 0x%04x\n", p, idx, val);
 	//uint8_t *p = flash + idx;
@@ -167,7 +167,7 @@ void cpu_write16(unsigned short val, unsigned short idx){
 
 void cpu_write8(unsigned char val, unsigned short idx){
 	uint8_t *p = mmap_z80_to_arm(idx);
-	if(!((p >= flash && p < flash + 0x400000) || (p >= ram && p < ram + 0x20000)))
+	if(!((p >= flash && p < flash + FLASH_SIZE) || (p >= ram && p < ram + RAM_SIZE)))
 		printf("Invalid memory access: %p %04x\n", p, idx);
 	//printf("write8 %08x (0x%04x) 0x%02x\n", ptr, idx, val);
 	*p = val;
@@ -182,7 +182,7 @@ void cpu_write8(unsigned char val, unsigned short idx){
 unsigned char cpu_in(unsigned short pn){
 	struct z80port *p = &ports[(uint8_t)pn];
 	uint8_t v = port_get(p);
-	if(isKeyPressed(KEY_NSPIRE_SHIFT) || (p->number >= 0x30 && p->number <= 0x38)) printf("Read %02x from port %02x (%s)\n", v, p->number, p->name);
+	//if(isKeyPressed(KEY_NSPIRE_SHIFT) printf("Read %02x from port %02x (%s)\n", v, p->number, p->name);
 	return v;
 }
 
@@ -192,7 +192,7 @@ void cpu_out(unsigned short pn, unsigned char val){
 	//asm(" mov r0, r6");
 	//uint16_t zpc = temp - ZCpu.Z80PC_BASE;
 	port_set(p, val);
-	if(isKeyPressed(KEY_NSPIRE_SHIFT) || (p->number >= 0x30 && p->number <= 0x38)) printf("Wrote %02x to port %02x (%s)\n", val, p->number, p->name);
+	//if(isKeyPressed(KEY_NSPIRE_SHIFT) printf("Wrote %02x to port %02x (%s)\n", val, p->number, p->name);
 	//temp = cpu_rebasePC(zpc);
 	//asm(" mov r6, r0"); // do not try this at home
 }
