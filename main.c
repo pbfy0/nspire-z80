@@ -32,9 +32,14 @@ void port_set(struct z80port *p, uint8_t val);
 struct DrZ80 ZCpu;
 volatile uint8_t flag;
 
-int main(void){
+int main(int argc, char **argv){
+	if(argc == 1){
+		cfg_register_fileext("8rom", "nspire-z80");
+		show_msgbox("Info", "File extension registered. Open a 8rom file to use.");
+		return 0;
+	}
 	FILE *romfile;
-	if(!(romfile = fopen("rom.tns", "rb"))){
+	if(!(romfile = fopen(argv[1], "rb"))){
 		show_msgbox("Error", "Could not open rom");
 		return 1;
 	}
