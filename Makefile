@@ -1,4 +1,4 @@
-DEBUG = TRUE
+DEBUG = FALSE
 GCC = nspire-gcc
 AS = nspire-as
 GXX=nspire-g++

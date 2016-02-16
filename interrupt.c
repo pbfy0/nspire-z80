@@ -3,15 +3,6 @@
 static const t_key KEY_NSPIRE_ON        = KEY_(0x10, 0x200);
 
 static void __attribute__((interrupt("IRQ"))) irq_handler();
-struct timer {
-	uint32_t load;
-	uint32_t value;
-	uint32_t control;
-	uint32_t intclr;
-	uint32_t ris;
-	uint32_t mis;
-	uint32_t bgload;
-};
 
 struct keypad {
 	/*uint8_t scan_mode : 2;

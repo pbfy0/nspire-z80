@@ -130,7 +130,6 @@ uint8_t mmap_in(uint8_t port){
 }
 
 void mmap_hi_out(uint8_t val, uint8_t port){
-	printf("mmap_hi_out %d %02x\n", port, val);
 	switch(port){
 		case 0x0E:
 		banks[1].hi = val & HI_MASK;

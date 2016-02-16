@@ -7,6 +7,7 @@
 #include "mmap.h"
 #include "lcd.h"
 #include "timer.h"
+#include "speedcontrol.h"
 
 void cpu_init();
 unsigned int cpu_rebasePC(unsigned short x);
@@ -69,24 +70,29 @@ int main(int argc, char **argv){
 		printf("%02x", cpu_read8(i));
 	}*/
 	interrupt_init();
+	speedcontrol_init();
 	int cycs = timer_after(0);
 	int i = 0;
 	
 	timer_set_enabled(1);
 	timer_freq_set(3);
 	while(1){
-		int cyce = DrZ80Run(&ZCpu, cycs);
+		int cyca = DrZ80Run(&ZCpu, cycs);
+		int cyce = cycs == cyca ? 100 : cycs - cyca;
+		//printf("%d %08x\n", cycs, *(volatile uint32_t *)(0x900C0004));
 		//printf("%d\n", cyce);
 		char *pc = (char *)ZCpu.Z80PC;
 		int pcb = ZCpu.Z80PC - ZCpu.Z80PC_BASE;
-		if(isKeyPressed(KEY_NSPIRE_SHIFT))
-			printf("%d %d %02x %04x %02x%02x%02x%02x\n", i++, cyce, mmap_get_active_page(ZCpu.Z80PC), pcb, pc[0], pc[1], pc[2], pc[3]);//, ZCpu.Z80BC);
-		cycs = timer_after(cycs == cyce ? 100 : cycs - cyce);
+		//if(isKeyPressed(KEY_NSPIRE_`))
+		//	printf("%d %d %02x %04x %02x%02x%02x%02x\n", i++, cyce, mmap_get_active_page(ZCpu.Z80PC), pcb, pc[0], pc[1], pc[2], pc[3]);//, ZCpu.Z80BC);
+		
+		cycs = timer_after(cyce);
 		if(isKeyPressed(KEY_NSPIRE_ESC)) break;
 		if(flag){
 			//printf("fire %02x\n", flag);
 			flag = 0;
 		}
+		speedcontrol_after(cyce);
 	}
 #ifdef USE_CSE
 	cselcd_end();
