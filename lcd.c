@@ -236,23 +236,28 @@ void lcd_data(uint8_t data){
 	for(i = 0; i < n_bits; i++){
 		set_pixel(x + i, y & 0x3f, data & (1<<(n_bits-1-i)));
 	}
+	lcd_auto_move();
 	/*if(data && !isKeyPressed(KEY_84_ALPHA)){
 		while(!isKeyPressed(KEY_84_2ND));
 		while(isKeyPressed(KEY_84_2ND));
 	}*/
-	lcd_auto_move();
 }
 
+uint8_t lcd_read_reg = 0;
+
 uint8_t lcd_data_read(){
-	uint8_t t = 0;
 	int x = cur_col * n_bits;
 	int y = cur_row;
 	int i;
+	uint8_t retval = lcd_read_reg;
+	lcd_read_reg = 0;
 	for(i = 0; i < n_bits; i++){
-		t <<= 1;
-		t |= get_pixel(x + i, y);
+		lcd_read_reg <<= 1;
+		lcd_read_reg |= get_pixel(x + i, y);
 	}
-	//lcd_auto_move();
+	lcd_auto_move();
+	//t <<= (8 - n_bits);
+	//if(n_bits == 8) cur_row++;//lcd_auto_move();
 	//if(t) printf("hi\n");
-	return t;
+	return retval;
 }
