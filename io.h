@@ -2,6 +2,7 @@
 #pragma once
 struct z80port {
 	uint8_t number;
+	struct z80port *mirror;
 	union {
 		void (*r)(uint8_t val);
 		void (*n)(uint8_t val, uint8_t port);

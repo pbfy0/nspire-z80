@@ -212,6 +212,7 @@ uint8_t port_get(struct z80port *p){
 	if(p->in.n) return p->in.n(p->number);
 	//if(p->n_in) return p->n_in(p->number);
 	if(p->ptr_val) return *(p->ptr_val);
+	if(p->mirror) return port_get(p->mirror);
 	return p->const_val;
 }
 
@@ -219,4 +220,5 @@ void port_set(struct z80port *p, uint8_t val){
 	if(p->out.n) p->out.n(val, p->number);
 	//else if(p->n_out) p->n_out(p->number, val);
 	else if(p->ptr_val) *(p->ptr_val) = val;
+	else if(p->mirror) port_set(p->mirror, val);
 }

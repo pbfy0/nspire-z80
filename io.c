@@ -17,6 +17,7 @@
 #include "z_interrupt.h"
 #include "timer.h"
 #include "io.h"
+#include "rtc.h"
 
 
 uint8_t mem_size = 3 | 2<<4;
@@ -60,46 +61,36 @@ void io_init(){
 	ports[0x05].name = "ram page";
 	ports[0x06].name = "memory page A";
 	ports[0x07].name = "memory page B";
-	ports[0x05].out.n = 
-	ports[0x06].out.n = 
-	ports[0x07].out.n = mmap_out;
-	ports[0x05].in.n = 
-	ports[0x06].in.n = 
-	ports[0x07].in.n = mmap_in;
+	ports[0x05].out.n = mmap_out;
+	ports[0x05].in.n = mmap_in;
+	ports[0x06].mirror = &ports[0x05];
+	ports[0x07].mirror = &ports[0x05];
 	
 	ports[0x0E].name = "memory page A high bits";
 	ports[0x0F].name = "memory page B high bits";
-	ports[0x0E].out.n = 
-	ports[0x0F].out.n = mmap_hi_out;
-	ports[0x0E].in.n = 
-	ports[0x0F].in.n = mmap_hi_in;
+	ports[0x0E].out.n = mmap_hi_out;
+	ports[0x0E].in.n = mmap_hi_in;
+	ports[0x0F].mirror = &ports[0x0E];
 	
-	ports[0x10].name =
-	ports[0x12].name = "lcd command";
+	ports[0x10].name = "lcd command";
 #ifndef USE_CSE
-	ports[0x10].in.r = 
-	ports[0x12].in.r = lcd_cmd_read;
-	ports[0x10].out.r = 
-	ports[0x12].out.r = lcd_cmd;
+	ports[0x10].in.r = lcd_cmd_read;
+	ports[0x10].out.r = lcd_cmd;
 #else
-	ports[0x10].out.r = 
-	ports[0x12].out.r = cselcd_ctrl_out;
+	ports[0x10].out.r = cselcd_ctrl_out;
 #endif
+	ports[0x12].mirror = &ports[0x10];
 	
 	
-	ports[0x11].name = 
-	ports[0x13].name = "lcd data";
+	ports[0x11].name = "lcd data";
 #ifndef USE_CSE
-	ports[0x11].in.r = 
-	ports[0x13].in.r = lcd_data_read;
-	ports[0x11].out.r = 
-	ports[0x13].out.r = lcd_data;
+	ports[0x11].in.r = lcd_data_read;
+	ports[0x11].out.r = lcd_data;
 #else
-	ports[0x11].in.r = 
-	ports[0x13].in.r = cselcd_data_in;
-	ports[0x11].out.r = 
-	ports[0x13].out.r = cselcd_data_out;
+	ports[0x11].in.r = cselcd_data_in;
+	ports[0x11].out.r = cselcd_data_out;
 #endif
+	ports[0x13].mirror = &ports[0x11];
 	
 	ports[0x14].name = "flash unlock";
 	ports[0x14].ptr_val = &flash_unlocked; // really should be & 1
@@ -116,6 +107,19 @@ void io_init(){
 	ports[0x21].out.r = memsize_set;
 	ports[0x21].ptr_val = &mem_size;
 	
+	ports[0x41].name = "rtc set";
+	ports[0x41].out.n = rtc_out;
+	ports[0x41].in.n = rtc_out_in;
+	ports[0x42].mirror = 
+	ports[0x43].mirror = 
+	ports[0x44].mirror = &ports[0x41];
+
+	ports[0x45].name = "rtc get";
+	ports[0x45].in.n = rtc_in;
+	ports[0x46].mirror = 
+	ports[0x47].mirror = 
+	ports[0x48].mirror = &ports[0x45];
+
 	ports[0x4c].name = "usb status";
 	ports[0x4c].const_val = 0x22; // usb stuff
 	
