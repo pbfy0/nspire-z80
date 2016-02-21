@@ -12,13 +12,25 @@ struct timer {
 	uint32_t bgload;
 };
 
+struct timer_bkp {
+	uint32_t load;
+	uint32_t value;
+	uint32_t control;
+};
+
 volatile struct timer *timer1 = (struct timer *)0x900C0000;
 unsigned cycs_elapsed;
+struct timer_bkp tb;
 
 void speedcontrol_init() {
+	tb = *((struct timer_bkp *)&timer1);
 	timer1->load = TICKS;
 	//timer1->value = 0xffffffff;
 	timer1->control = 0b10000000;
+}
+
+void speedcontrol_end() {
+	*((struct timer_bkp *)&timer1) = tb;
 }
 
 void speedcontrol_after(int cycs) {
