@@ -5,15 +5,18 @@ static const t_key KEY_NSPIRE_ON        = KEY_(0x10, 0x200);
 
 extern struct DrZ80 ZCpu;
 extern volatile uint8_t flag;
+struct z_interrupt_state {
+	uint8_t ints_enabled;
+	uint8_t ints_firing;
+};
 
-uint8_t ints_enabled = 0;
-uint8_t ints_firing = 0;
+struct z_interrupt_state zis = {0, 0};
 
 void int_mask_out(uint8_t val){
-	//printf("int_mask_out %02x (f %02x)\n", val, ints_firing);
-	ints_enabled = val;
+	//printf("int_mask_out %02x (f %02x)\n", val, zis.ints_firing);
+	zis.ints_enabled = val;
 	timer_set_enabled((val >> 1) & 0b11);
-	ints_firing &= val;
+	zis.ints_firing &= val;
 	/*if(val & INT_ON) printf("on ");
 	if(val & INT_ON) printf("hwt1 ");
 	if(val & INT_ON) printf("hwt2 ");
@@ -25,28 +28,36 @@ void int_mask_out(uint8_t val){
 }
 
 uint8_t int_mask_in(){
-	return ints_enabled & ~(1<<3);
+	return zis.ints_enabled & ~(1<<3);
 }
 
 void int_ack_out(uint8_t val){
 	//printf("int_ack_out %02x\n", val);
-	ints_firing &= val;
+	zis.ints_firing &= val;
 }
 
 uint8_t int_id_in(){
-	//printf("int_id_in %02x\n", ints_firing);
-	return ints_firing | (isKeyPressed(KEY_NSPIRE_ON) ? 0 : 1<<3);
+	//printf("int_id_in %02x\n", zis.ints_firing);
+	return zis.ints_firing | (isKeyPressed(KEY_NSPIRE_ON) ? 0 : 1<<3);
 }
 
 void int_fire(uint8_t num){
-	ints_firing |= num;
+	zis.ints_firing |= num;
 	ZCpu.Z80_IRQ = 1;
 	flag = num;
 }
 
 void int_callback(){
 	ZCpu.Z80_IRQ = 0;
-	/*if(ints_firing != 0){
-		int_fire(ints_firing);
+	/*if(zis.ints_firing != 0){
+		int_fire(zis.ints_firing);
 	}*/
+}
+
+void int_save(FILE *f){
+	FWRITE_VALUE(zis, f);
+}
+
+void int_restore(FILE *f){
+	FREAD_VALUE(&zis, f);
 }

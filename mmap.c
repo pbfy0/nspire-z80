@@ -26,7 +26,6 @@ membank alt_banks[4];
 membank *active_map;
 uint8_t normal = 0;
 
-struct mb_status mbss[2];
 void mmap_init(){
 	ram = calloc(0x20000, 1);
 	memset(banks, 0, sizeof(banks));
@@ -180,4 +179,29 @@ static void update_bank(membank *b){
 		b->addr = FLASH_PAGE((b->lo & 0x7f) | (b->hi << 7));
 		b->is_ram = 0;
 	}
+}
+
+void mmap_save(FILE *f){
+	uint8_t b[3][2];
+	
+	int i;
+	for(i = 1; i < 4; i++){
+		b[i-1][0] = banks[i].lo;
+		b[i-1][1] = banks[i].hi;
+	}
+	fwrite(b, sizeof(uint8_t) * 2, 3, f);
+	fputc(normal, f);
+}
+
+void mmap_restore(FILE *f){
+	uint8_t b[3][2];
+	fread(b, sizeof(uint8_t) * 2, 3, f);
+	
+	int i;
+	for(i = 1; i < 4; i++){
+		banks[i].lo = b[i][0];
+		banks[i].hi = b[i][1];
+		switch_bank(i);
+	}
+	normal = fgetc(f);
 }

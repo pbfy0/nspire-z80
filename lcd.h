@@ -1,9 +1,16 @@
+#pragma once
+#include <stdint.h>
+#include <os.h>
+
 void lcd_init();
 void lcd_end();
 void lcd_cmd(uint8_t);
 void lcd_data(uint8_t);
 uint8_t lcd_cmd_read();
 uint8_t lcd_data_read();
+
+void lcd_save(FILE *f);
+void lcd_restore(FILE *f);
 
 #define BIT_6 0
 #define BIT_8 1

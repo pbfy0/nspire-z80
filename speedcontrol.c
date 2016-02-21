@@ -1,5 +1,7 @@
 #include <stdint.h>
 
+#define TICKS 64
+
 struct timer {
 	uint32_t load;
 	uint32_t value;
@@ -14,7 +16,7 @@ volatile struct timer *timer1 = (struct timer *)0x900C0000;
 unsigned cycs_elapsed;
 
 void speedcontrol_init() {
-	timer1->load = 16;
+	timer1->load = TICKS;
 	//timer1->value = 0xffffffff;
 	timer1->control = 0b10000000;
 }
@@ -26,7 +28,7 @@ void speedcontrol_after(int cycs) {
 	int i;
 	//for(i = 0; i < 1000000; i++);
 	//timer1->control &= ~0x80;
-	uint32_t elapsed = 16 - v;
+	uint32_t elapsed = TICKS - v;
 	int z80_32k_cycs = cycs_elapsed * 32768 / (cpu_freq_get() ? 15000000 : 6000000);
 	int new_cycs = z80_32k_cycs - elapsed;
 	if(new_cycs > 0){
@@ -36,5 +38,5 @@ void speedcontrol_after(int cycs) {
 	}
 	//printf("%5d %04x %d %f %f\n", cycs_elapsed, v & 0xffff, elapsed, seconds, s_elapsed);
 	cycs_elapsed = 0;
-	timer1->load = 16;
+	timer1->load = TICKS;
 }

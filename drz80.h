@@ -66,6 +66,31 @@ struct DrZ80
   unsigned char Z80_NMI;
 };
 
+struct DrZ80Regs {
+  unsigned int Z80PC;             /*0x00 - PC Program Counter (Memory Base + PC) */                           
+  unsigned int Z80A;              /*0x04 - A Register:   0xAA------ */                           
+  unsigned int Z80F;              /*0x08 - F Register:   0xFF------ */                           
+  unsigned int Z80BC;             /*0x0C - BC Registers: 0xBBCC---- */                           
+  unsigned int Z80DE;             /*0x10 - DE Registers: 0xDDEE---- */                           
+  unsigned int Z80HL;             /*0x14 - HL Registers: 0xHHLL---- */                           
+  unsigned int Z80SP;             /*0x18 - SP Stack Pointer (Memory Base + PC) */                           
+  unsigned int Z80PC_BASE;        /*0x1C - PC Program Counter (Memory Base) */                           
+  unsigned int Z80SP_BASE;        /*0x20 - SP Stack Pointer (Memory Base) */                           
+  unsigned int Z80IX;             /*0x24 - IX Index Register */                           
+  unsigned int Z80IY;             /*0x28 - IY Index Register */                           
+  unsigned int Z80I;              /*0x2C - I Interrupt Register */                           
+  unsigned int Z80A2;             /*0x30 - A' Register:    0xAA------ */                           
+  unsigned int Z80F2;             /*0x34 - F' Register:    0xFF------ */                           
+  unsigned int Z80BC2;            /*0x38 - B'C' Registers: 0xBBCC---- */                           
+  unsigned int Z80DE2;            /*0x3C - D'E' Registers: 0xDDEE---- */                           
+  unsigned int Z80HL2;            /*0x40 - H'L' Registers: 0xHHLL---- */                               
+  unsigned char Z80_IRQ;          /*0x4C - Set IRQ Number (must be halfword aligned) */                              
+  unsigned char Z80IF;            /*0x4D - Interrupt Flags:  bit1=_IFF1, bit2=_IFF2, bit3=_HALT */                           
+  unsigned char Z80IM;            /*0x4E - Set IRQ Mode */                           
+  unsigned char Z80R;             /*0x4F - N/A */                           
+  unsigned int z80irqvector;      /*0x50 - Set IRQ Vector i.e. 0xFF=RST */                           
+};
+
 extern int DrZ80Run(struct DrZ80 *pcy,unsigned int cyc);
 
 #define Z80_HALT (1<<2)

@@ -5,11 +5,6 @@ typedef struct {
 	uint8_t is_ram;
 } membank;
 
-struct mb_status {
-	uint8_t low;
-	uint8_t hi;
-};
-
 void mmap_init();
 void mmap_end();
 void mmap_check_endboot(uint16_t pc);
@@ -27,6 +22,9 @@ uint16_t mmap_get_active_page(uint16_t z80addr);
 
 extern uint8_t *flash;
 extern uint8_t *ram;
+
+void mmap_save(FILE *f);
+void mmap_restore(FILE *f);
 
 #ifdef USE_CSE
 #define FLASH_SIZE 0x400000

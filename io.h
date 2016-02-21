@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <os.h>
 #pragma once
 struct z80port {
 	uint8_t number;
@@ -21,3 +22,6 @@ struct z80port {
 
 extern struct z80port ports[0x100];
 void io_init();
+
+void io_save(FILE *f);
+void io_restore(FILE *f);

@@ -1,5 +1,6 @@
 #include "z_interrupt.h"
 #include "drz80.h"
+#include "util.h"
 #include <limits.h>
 extern struct DrZ80 ZCpu;
 
@@ -91,4 +92,12 @@ void cpu_freq_set(uint8_t val){
 }
 uint8_t cpu_freq_get(){
 	return cpu_freq;
+}
+
+void timer_save(FILE *f) {
+	FWRITE_VALUE(timers, f);
+}
+
+void timer_reload(FILE *f) {
+	FREAD_VALUE(&timers, f);
 }

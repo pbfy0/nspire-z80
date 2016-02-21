@@ -1,11 +1,18 @@
 #include <os.h>
 #include "lcd.h"
-int cur_row = 0;
-int cur_col = 0;
-int row_offset = 0;
-int n_bits = 8;
-uint8_t auto_mode = AUTO_DOWN;
-uint8_t enabled = TRUE;
+#include "util.h"
+struct lcd_state {
+	int cur_row;
+	int cur_col;
+	int row_offset;
+	int n_bits;
+	uint8_t auto_mode;
+	uint8_t enabled;
+	uint8_t lcd_read_reg;
+	uint8_t contrast;
+};
+
+struct lcd_state ls = { 0, 0, 0, 8, AUTO_DOWN, TRUE, 0, 0xff };
 //uint8_t video_mem[120*64/8];
 uint8_t *framebuffer;
 uint8_t *bfb;
@@ -13,7 +20,7 @@ volatile uint32_t *palette = (uint32_t *)0xC0000200;
 
 #define XY_TO_IDX(x, y) ((y) * 120 + (x))
 #define XY_TO_FBO(x, y) ((y) * 320 + (x))
-#define MAX_COL ((n_bits == 8) ? 14 : 19)
+#define MAX_COL ((ls.n_bits == 8) ? 14 : 19)
 #define C_XO ((320-(96*3))/2)
 #define C_YO ((240-(64*3))/2)
 
@@ -158,13 +165,13 @@ static uint8_t get_pixel(int x, int y){
 
 void lcd_cmd(uint8_t cmd){
 	if(cmd >= 0x20 && cmd <= 0x3F){
-		cur_col = cmd - 0x20;
-		//printf("col %d\n", cur_col);
+		ls.cur_col = cmd - 0x20;
+		//printf("col %d\n", ls.cur_col);
 		return;
 	}
 	if(cmd >= 0x80 && cmd <= 0xBF){
-		cur_row = cmd - 0x80;
-		//printf("row %d\n", cur_row);
+		ls.cur_row = cmd - 0x80;
+		//printf("row %d\n", ls.cur_row);
 	}
 	if(cmd >= 0xC0){
 		int black = (cmd - 0xC0) >> 1;
@@ -175,20 +182,20 @@ void lcd_cmd(uint8_t cmd){
 	}
 	switch(cmd){
 		case BIT_6:
-			n_bits = 6;
+			ls.n_bits = 6;
 			//printf("6 bit mode\n");
 		break;
 		case BIT_8:
-			n_bits = 8;
+			ls.n_bits = 8;
 			//printf("8 bit mode\n");
-			//printf("%d bits\n", n_bits);
+			//printf("%d bits\n", ls.n_bits);
 		break;
 		case LCD_ENABLE:
-			enabled = TRUE;
-			//puts("enabled");
+			ls.enabled = TRUE;
+			//puts("ls.enabled");
 		break;
 		case LCD_DISABLE:
-			enabled = FALSE;
+			ls.enabled = FALSE;
 			//puts("disabled");
 		break;
 		case AUTO_UP:
@@ -196,45 +203,45 @@ void lcd_cmd(uint8_t cmd){
 		case AUTO_LEFT:
 		case AUTO_RIGHT:
 			//printf("auto %d\n", cmd);
-			auto_mode = cmd;
+			ls.auto_mode = cmd;
 		break;
 	}
 }
 
 uint8_t lcd_cmd_read(){
-	uint8_t v = (auto_mode == AUTO_RIGHT || auto_mode == AUTO_DOWN);
-	v |= (auto_mode == AUTO_LEFT || auto_mode == AUTO_RIGHT) << 1;
-	v |= enabled << 5;
-	v |= (n_bits == 8) << 6;
+	uint8_t v = (ls.auto_mode == AUTO_RIGHT || ls.auto_mode == AUTO_DOWN);
+	v |= (ls.auto_mode == AUTO_LEFT || ls.auto_mode == AUTO_RIGHT) << 1;
+	v |= ls.enabled << 5;
+	v |= (ls.n_bits == 8) << 6;
 	return v;
 }
 
 void lcd_auto_move(){
-	switch(auto_mode){
+	switch(ls.auto_mode){
 		case AUTO_UP:
-			cur_row--;
+			ls.cur_row--;
 		break;
 		case AUTO_DOWN:
-			cur_row++;
+			ls.cur_row++;
 		break;
 		case AUTO_LEFT:
-			cur_col--;
-			if(cur_col == -1) cur_col = MAX_COL;
+			ls.cur_col--;
+			if(ls.cur_col == -1) ls.cur_col = MAX_COL;
 		break;
 		case AUTO_RIGHT:
-			cur_col++;
-			if(cur_col == MAX_COL + 1) cur_col = 0;
-			if(cur_col == 32) cur_col = 0;
+			ls.cur_col++;
+			if(ls.cur_col == MAX_COL + 1) ls.cur_col = 0;
+			if(ls.cur_col == 32) ls.cur_col = 0;
 		break;
 	}
 
 }
 void lcd_data(uint8_t data){
 	int i;
-	int x = cur_col * n_bits;
-	int y = cur_row;
-	for(i = 0; i < n_bits; i++){
-		set_pixel(x + i, y & 0x3f, data & (1<<(n_bits-1-i)));
+	int x = ls.cur_col * ls.n_bits;
+	int y = ls.cur_row;
+	for(i = 0; i < ls.n_bits; i++){
+		set_pixel(x + i, y & 0x3f, data & (1<<(ls.n_bits-1-i)));
 	}
 	lcd_auto_move();
 	/*if(data && !isKeyPressed(KEY_84_ALPHA)){
@@ -246,18 +253,62 @@ void lcd_data(uint8_t data){
 uint8_t lcd_read_reg = 0;
 
 uint8_t lcd_data_read(){
-	int x = cur_col * n_bits;
-	int y = cur_row;
+	int x = ls.cur_col * ls.n_bits;
+	int y = ls.cur_row;
 	int i;
-	uint8_t retval = lcd_read_reg;
-	lcd_read_reg = 0;
-	for(i = 0; i < n_bits; i++){
-		lcd_read_reg <<= 1;
-		lcd_read_reg |= get_pixel(x + i, y);
+	uint8_t retval = ls.lcd_read_reg;
+	ls.lcd_read_reg = 0;
+	for(i = 0; i < ls.n_bits; i++){
+		ls.lcd_read_reg <<= 1;
+		ls.lcd_read_reg |= get_pixel(x + i, y);
 	}
 	lcd_auto_move();
-	//t <<= (8 - n_bits);
-	//if(n_bits == 8) cur_row++;//lcd_auto_move();
+	//t <<= (8 - ls.n_bits);
+	//if(ls.n_bits == 8) ls.cur_row++;//lcd_auto_move();
 	//if(t) printf("hi\n");
 	return retval;
+}
+
+void lcd_save(FILE *f){
+	FWRITE_VALUE(ls, f);
+	struct lcd_state bls = ls;
+	ls.cur_col = 0;
+	ls.cur_row = 0;
+	ls.n_bits = 8;
+	ls.auto_mode = AUTO_RIGHT;
+	uint8_t *b = malloc(768);
+	uint8_t *p = b;
+	int i;
+	for(i = 0; i < 64; i++){
+		int j;
+		for(j = 0; j < 96/8; j++){
+			*(p++) = lcd_data_read();
+		}
+		ls.cur_row++;
+	}
+	fwrite(b, 768, 1, f);
+	free(b);
+	ls = bls;
+}
+
+void lcd_restore(FILE *f){
+	struct lcd_state nls;
+	FREAD_VALUE(&nls, f);
+	ls.cur_col = 0;
+	ls.cur_row = 0;
+	ls.n_bits = 8;
+	ls.auto_mode = AUTO_RIGHT;
+	uint8_t *b = malloc(768);
+	fread(b, 768, 1, f);
+	uint8_t *p = b;
+	int i;
+	for(i = 0; i < 64; i++){
+		int j;
+		for(j = 0; j < 96/8; j++){
+			lcd_data(*(p++));
+		}
+		ls.cur_row++;
+	}
+	free(b);
+	ls = nls;
 }

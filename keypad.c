@@ -44,3 +44,11 @@ uint8_t keypad_read(){
 	}
 	return ~o;
 }
+
+void keypad_save(FILE *f) {
+	fputc(mon, f);
+}
+
+void keypad_restore(FILE *f) {
+	mon = fgetc(f);
+}

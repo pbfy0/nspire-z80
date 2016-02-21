@@ -19,11 +19,16 @@
 #include "io.h"
 #include "rtc.h"
 
+#include "util.h"
 
-uint8_t mem_size = 3 | 2<<4;
-uint8_t flash_unlocked = 0;
-uint8_t usb_dev_addr = 0;
-uint8_t usb_event_mask = 0;
+struct io_state {
+	uint8_t mem_size;
+	uint8_t flash_unlocked;
+	uint8_t usb_dev_addr;
+	uint8_t usb_event_mask;
+};
+
+struct io_state is = {3 | 2<<4, 0, 0, 0};
 
 struct z80port ports[0x100] = {0};
 
@@ -93,7 +98,7 @@ void io_init(){
 	ports[0x13].mirror = &ports[0x11];
 	
 	ports[0x14].name = "flash unlock";
-	ports[0x14].ptr_val = &flash_unlocked; // really should be & 1
+	ports[0x14].ptr_val = &is.flash_unlocked; // really should be & 1
 	ports[0x14].const_val = 0;
 	
 	ports[0x15].name = "asic version";
@@ -105,7 +110,7 @@ void io_init(){
 	
 	ports[0x21].name = "memory size";
 	ports[0x21].out.r = memsize_set;
-	ports[0x21].ptr_val = &mem_size;
+	ports[0x21].ptr_val = &is.mem_size;
 	
 	ports[0x41].name = "rtc set";
 	ports[0x41].out.n = rtc_out;
@@ -134,15 +139,15 @@ void io_init(){
 	ports[0x56].const_val = 0; // individual usb interrupts
 	
 	ports[0x57].name = "usb event mask";
-	ports[0x57].ptr_val = &usb_event_mask;
+	ports[0x57].ptr_val = &is.usb_event_mask;
 	
 	ports[0x80].name = "usb address";
 	ports[0x80].out.r = usb_set_addr;
-	ports[0x80].ptr_val = &usb_dev_addr;
+	ports[0x80].ptr_val = &is.usb_dev_addr;
 }
 
 void memsize_set(uint8_t val){
-	mem_size = val & 0b00110011;
+	is.mem_size = val & 0b00110011;
 }
 
 void port4_out(uint8_t val){
@@ -151,9 +156,17 @@ void port4_out(uint8_t val){
 }
 
 void usb_set_addr(uint8_t val){
-	usb_dev_addr = val & 0x7f;
+	is.usb_dev_addr = val & 0x7f;
 }
 
 uint8_t status_in(){
-	return STATUS_NORMAL | flash_unlocked<<2;
+	return STATUS_NORMAL | is.flash_unlocked<<2;
+}
+
+void io_save(FILE *f){
+	FWRITE_VALUE(is, f);
+}
+
+void io_restore(FILE *f){
+	FREAD_VALUE(&is, f);
 }

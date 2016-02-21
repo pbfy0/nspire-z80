@@ -1,6 +1,8 @@
 #include <stdint.h>
+#include <stdio.h>
+#include "util.h"
 
-uint32_t rtc_diff = 0;
+int32_t rtc_diff = 0;
 uint32_t rtc_out_v = 0;
 uint8_t *rtc_optr = (uint8_t *)&rtc_out_v;
 
@@ -17,4 +19,12 @@ uint8_t rtc_out_in(uint8_t port){
 uint8_t rtc_in(uint8_t port){
 	uint32_t nv = *nspire_rtc + rtc_diff;
 	return ((uint8_t *)&nv)[port-0x45];
+}
+
+void rtc_save(FILE *f){
+	FWRITE_VALUE(rtc_diff, f);
+}
+
+void rtc_restore(FILE *f){
+	FREAD_VALUE(&rtc_diff, f);
 }

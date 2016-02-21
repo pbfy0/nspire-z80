@@ -1,5 +1,6 @@
 #include <os.h>
 #include "drz80.h"
+#include "util.h"
 
 #define INT_ON 1<<0
 #define INT_HW1 1<<1
