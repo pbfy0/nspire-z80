@@ -54,7 +54,6 @@ int main(int argc, char **argv){
 	io_init();
 	
 	int l = strlen(argv[1]);
-	puts(argv[1] + l - 8);
 	char *sav_romname = NULL;
 	if(strncmp(argv[1] + l - 4 - 4, "8sav", 4) == 0){
 		savestate_load(argv[1], &sav_romname);
