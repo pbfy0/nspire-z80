@@ -63,7 +63,7 @@ void io_init(){
 	ports[0x07].name = "memory page B";
 	ports[0x05].out.n = mmap_out;
 	ports[0x05].in.n = mmap_in;
-	ports[0x06].mirror = &ports[0x05];
+	ports[0x06].mirror =
 	ports[0x07].mirror = &ports[0x05];
 	
 	ports[0x0E].name = "memory page A high bits";

@@ -21,8 +21,8 @@ unsigned char cpu_in(unsigned short port);
 void cpu_out(unsigned short port, unsigned char val);
 void cpu_irq_callback();
 
-uint8_t port_get(struct z80port *p);
-void port_set(struct z80port *p, uint8_t val);
+uint8_t port_get(uint8_t pn, struct z80port *p);
+void port_set(uint8_t pn, struct z80port *p, uint8_t val);
 
 
 
@@ -190,35 +190,37 @@ void cpu_write8(unsigned char val, unsigned short idx){
 	//if(port == 1) printf("in %x %x\n", port, x);
 	return x;
 }*/
-unsigned char cpu_in(unsigned short pn){
-	struct z80port *p = &ports[(uint8_t)pn];
-	uint8_t v = port_get(p);
-	//if(isKeyPressed(KEY_NSPIRE_SHIFT) printf("Read %02x from port %02x (%s)\n", v, p->number, p->name);
+unsigned char cpu_in(unsigned short pn_){
+	uint8_t pn = (uint8_t)pn_;
+	struct z80port *p = &ports[pn];
+	uint8_t v = port_get(pn, p);
+	//if(p->mirror) printf("Read %02x from port %02x (%s)\n", v, p->number, p->name);
 	return v;
 }
 
-void cpu_out(unsigned short pn, unsigned char val){
-	struct z80port *p = &ports[(uint8_t)pn];
+void cpu_out(unsigned short pn_, unsigned char val){
+	uint8_t pn = (uint8_t)pn_;
+	struct z80port *p = &ports[pn];
 	//register uint8_t *temp asm("r0");
 	//asm(" mov r0, r6");
 	//uint16_t zpc = temp - ZCpu.Z80PC_BASE;
-	port_set(p, val);
-	//if(isKeyPressed(KEY_NSPIRE_SHIFT) printf("Wrote %02x to port %02x (%s)\n", val, p->number, p->name);
+	port_set(pn, p, val);
+	//if(p->mirror) printf("Wrote %02x to port %02x (%s)\n", val, p->number, p->name);
 	//temp = cpu_rebasePC(zpc);
 	//asm(" mov r6, r0"); // do not try this at home
 }
 
-uint8_t port_get(struct z80port *p){
-	if(p->in.n) return p->in.n(p->number);
+uint8_t port_get(uint8_t pn, struct z80port *p){
+	if(p->in.n) return p->in.n(pn);
 	//if(p->n_in) return p->n_in(p->number);
 	if(p->ptr_val) return *(p->ptr_val);
-	if(p->mirror) return port_get(p->mirror);
+	if(p->mirror) return port_get(pn, p->mirror);
 	return p->const_val;
 }
 
-void port_set(struct z80port *p, uint8_t val){
-	if(p->out.n) p->out.n(val, p->number);
+void port_set(uint8_t pn, struct z80port *p, uint8_t val){
+	if(p->out.n) p->out.n(val, pn);
 	//else if(p->n_out) p->n_out(p->number, val);
 	else if(p->ptr_val) *(p->ptr_val) = val;
-	else if(p->mirror) port_set(p->mirror, val);
+	else if(p->mirror) port_set(pn, p->mirror, val);
 }
