@@ -199,9 +199,10 @@ void mmap_restore(FILE *f){
 	
 	int i;
 	for(i = 1; i < 4; i++){
-		banks[i].lo = b[i][0];
-		banks[i].hi = b[i][1];
+		banks[i].lo = b[i-1][0];
+		banks[i].hi = b[i-1][1];
 		switch_bank(i);
 	}
 	normal = fgetc(f);
+	if(normal) mmap_normal_init();
 }

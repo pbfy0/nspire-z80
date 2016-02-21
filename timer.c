@@ -4,9 +4,13 @@
 #include <limits.h>
 extern struct DrZ80 ZCpu;
 
-uint8_t cpu_freq = 0;
-uint8_t timer_freq = 3;
-uint8_t timers_enabled = 0;
+struct timer_state {
+	uint8_t cpu_freq;
+	uint8_t timer_freq;
+	uint8_t timers_enabled;
+};
+
+struct timer_state ts = {0, 3, 0};
 
 struct hwtimer {
 	int tstates_left;
@@ -35,8 +39,8 @@ uint16_t timer_cycles[2][4][3] = { // cpu speed, timer speed, timers enabled
 
 void timer_set_enabled(uint8_t mask){
 	int i;
-	uint8_t ote = timers_enabled;
-	timers_enabled = mask;
+	uint8_t ote = ts.timers_enabled;
+	ts.timers_enabled = mask;
 	for(i = 0; i < 2; i++){
 		if((mask & 1<<i) && !(ote & 1<<i)) timer_enable(&timers[i]);
 		if((ote & 1<<i) && !(mask & 1<<i)) timer_disable(&timers[i]);
@@ -54,13 +58,13 @@ void timer_disable(struct hwtimer *t){
 }
 
 void timer_freq_set(uint8_t val){
-	timer_freq = val;
+	ts.timer_freq = val;
 }
 
 int next_timer(){
-	int x = 32768/(64+(80*(timer_freq))) * timers_enabled;
-	return (cpu_freq ? 15000000 : 6000000) / x;
-	//return timer_cycles[cpu_freq][timer_freq][timers_enabled-1];// >> 2;
+	int x = 32768/(64+(80*(ts.timer_freq))) * ts.timers_enabled;
+	return (ts.cpu_freq ? 15000000 : 6000000) / x;
+	//return timer_cycles[ts.cpu_freq][ts.timer_freq][ts.timers_enabled-1];// >> 2;
 }
 
 int timer_after(int elapsed){
@@ -88,16 +92,20 @@ int timer_after(int elapsed){
 }
 
 void cpu_freq_set(uint8_t val){
-	cpu_freq = val & 1;
+	ts.cpu_freq = val & 1;
 }
 uint8_t cpu_freq_get(){
-	return cpu_freq;
+	return ts.cpu_freq;
 }
 
 void timer_save(FILE *f) {
-	FWRITE_VALUE(timers, f);
+	//FWRITE_VALUE(timers, f);
+	FWRITE_VALUE(ts, f);
+	fwrite(timers, sizeof(timers), 1, f);
 }
 
-void timer_reload(FILE *f) {
-	FREAD_VALUE(&timers, f);
+void timer_restore(FILE *f) {
+	FREAD_VALUE(&ts, f);
+	fread(timers, sizeof(timers), 1, f);
+	//FREAD_VALUE(&timers, f);
 }

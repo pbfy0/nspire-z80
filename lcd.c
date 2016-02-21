@@ -163,6 +163,13 @@ static uint8_t get_pixel(int x, int y){
 	return framebuffer[C_OFFSET + XY_TO_FBO(x*3, y*3)] && 1;//(video_mem[n >> 3] & 1<<(n & 0b111)) ? 1 : 0;
 }
 
+void set_contrast(uint8_t contrast){
+	int black = contrast;
+	int white = 0xff - contrast;
+	palette[0] = pack_rgb(black, black, black) << 16 | pack_rgb(white, white, white);
+	ls.contrast = contrast;
+}
+
 void lcd_cmd(uint8_t cmd){
 	if(cmd >= 0x20 && cmd <= 0x3F){
 		ls.cur_col = cmd - 0x20;
@@ -174,9 +181,7 @@ void lcd_cmd(uint8_t cmd){
 		//printf("row %d\n", ls.cur_row);
 	}
 	if(cmd >= 0xC0){
-		int black = (cmd - 0xC0) >> 1;
-		int white = 0xff - (black >> 1);
-		palette[0] = pack_rgb(black, black, black) << 16 | pack_rgb(white, white, white);
+		set_contrast(0xff - cmd);
 		// contrast
 		return;
 	}
@@ -252,21 +257,26 @@ void lcd_data(uint8_t data){
 
 uint8_t lcd_read_reg = 0;
 
-uint8_t lcd_data_read(){
+uint8_t _lcd_data_read(){
 	int x = ls.cur_col * ls.n_bits;
 	int y = ls.cur_row;
 	int i;
-	uint8_t retval = ls.lcd_read_reg;
-	ls.lcd_read_reg = 0;
+	uint8_t v = 0;
 	for(i = 0; i < ls.n_bits; i++){
-		ls.lcd_read_reg <<= 1;
-		ls.lcd_read_reg |= get_pixel(x + i, y);
+		v <<= 1;
+		v |= get_pixel(x + i, y);
 	}
 	lcd_auto_move();
 	//t <<= (8 - ls.n_bits);
 	//if(ls.n_bits == 8) ls.cur_row++;//lcd_auto_move();
 	//if(t) printf("hi\n");
-	return retval;
+	return v;
+}
+
+uint8_t lcd_data_read() {
+	uint8_t v = ls.lcd_read_reg;
+	ls.lcd_read_reg = _lcd_data_read();
+	return v;
 }
 
 void lcd_save(FILE *f){
@@ -282,9 +292,10 @@ void lcd_save(FILE *f){
 	for(i = 0; i < 64; i++){
 		int j;
 		for(j = 0; j < 96/8; j++){
-			*(p++) = lcd_data_read();
+			*(p++) = _lcd_data_read();
 		}
 		ls.cur_row++;
+		ls.cur_col = 0;
 	}
 	fwrite(b, 768, 1, f);
 	free(b);
@@ -308,7 +319,10 @@ void lcd_restore(FILE *f){
 			lcd_data(*(p++));
 		}
 		ls.cur_row++;
+		ls.cur_col = 0;
 	}
 	free(b);
 	ls = nls;
+	
+	set_contrast(ls.contrast);
 }

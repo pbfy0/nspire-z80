@@ -8,6 +8,8 @@
 #include "lcd.h"
 #include "timer.h"
 #include "speedcontrol.h"
+#include "savestate.h"
+#include "rtc.h"
 
 void cpu_init();
 unsigned int cpu_rebasePC(unsigned short x);
@@ -36,23 +38,12 @@ volatile uint8_t flag;
 int main(int argc, char **argv){
 	if(argc == 1){
 		cfg_register_fileext("8rom", "nspire-z80");
+		cfg_register_fileext("8sav", "nspire-z80");
 		show_msgbox("Info", "File extension registered. Open a 8rom file to use.");
 		return 0;
 	}
-	FILE *romfile;
-	if(!(romfile = fopen(argv[1], "rb"))){
-		show_msgbox("Error", "Could not open rom");
-		return 1;
-	}
-	fseek(romfile, 0, SEEK_END);
-	int romsize = ftell(romfile);
-	fseek(romfile, 0, 0);
-	//printf("%d\n", romsize);
-	mmap_init();
-	//flash = calloc(0x20000, 1);
-	fread(flash, sizeof(char), romsize, romfile);
-	fclose(romfile);
 	
+	mmap_init();
 #ifdef USE_CSE
 	cselcd_init();
 #else
@@ -61,6 +52,27 @@ int main(int argc, char **argv){
 	cpu_init();
 	
 	io_init();
+	
+	int l = strlen(argv[1]);
+	puts(argv[1] + l - 8);
+	char *sav_romname = NULL;
+	if(strncmp(argv[1] + l - 4 - 4, "8sav", 4) == 0){
+		savestate_load(argv[1], &sav_romname);
+	}else{
+		FILE *romfile;
+		if(!(romfile = fopen(argv[1], "rb"))){
+			show_msgbox("Error", "Could not open rom");
+			return 1;
+		}
+		fseek(romfile, 0, SEEK_END);
+		int romsize = ftell(romfile);
+		fseek(romfile, 0, 0);
+		//printf("%d\n", romsize);
+		//flash = calloc(0x20000, 1);
+		fread(flash, sizeof(char), romsize, romfile);
+		fclose(romfile);
+	}
+	
 	//asm(" b .");
 	printf("%08x\n", ZCpu.Z80PC_BASE - (unsigned int)flash);
 	printf("%08x\n", ZCpu.Z80PC - (unsigned int)flash);
@@ -83,7 +95,7 @@ int main(int argc, char **argv){
 		//printf("%d\n", cyce);
 		char *pc = (char *)ZCpu.Z80PC;
 		int pcb = ZCpu.Z80PC - ZCpu.Z80PC_BASE;
-		//if(isKeyPressed(KEY_NSPIRE_`))
+		//if(isKeyPressed(KEY_NSPIRE_CAT))
 		//	printf("%d %d %02x %04x %02x%02x%02x%02x\n", i++, cyce, mmap_get_active_page(ZCpu.Z80PC), pcb, pc[0], pc[1], pc[2], pc[3]);//, ZCpu.Z80BC);
 		
 		cycs = timer_after(cyce);
@@ -94,6 +106,15 @@ int main(int argc, char **argv){
 		}
 		speedcontrol_after(cyce);
 	}
+	
+	if(sav_romname){
+		savestate_save(sav_romname);
+		free(sav_romname);
+	}else{
+		savestate_save(argv[1]);
+		//refresh_osscr();
+	}
+	
 #ifdef USE_CSE
 	cselcd_end();
 #else

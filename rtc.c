@@ -1,5 +1,4 @@
-#include <stdint.h>
-#include <stdio.h>
+#include "os.h"
 #include "util.h"
 
 int32_t rtc_diff = 0;
@@ -17,8 +16,9 @@ uint8_t rtc_out_in(uint8_t port){
 }
 
 uint8_t rtc_in(uint8_t port){
-	uint32_t nv = *nspire_rtc + rtc_diff;
-	return ((uint8_t *)&nv)[port-0x45];
+	uint32_t nv = (*nspire_rtc) + rtc_diff;
+	return (nv >> ((port - 0x45) * 8)) & 0xff;
+	//return ((uint8_t *)&nv)[port-0x45];
 }
 
 void rtc_save(FILE *f){

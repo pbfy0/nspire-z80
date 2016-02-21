@@ -16,3 +16,6 @@ void int_ack_out(uint8_t val);
 uint8_t int_id_in();
 void int_fire(uint8_t num);
 void int_callback();
+
+void int_save(FILE *f);
+void int_restore(FILE *f);
