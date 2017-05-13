@@ -38,6 +38,12 @@ static uint16_t pack_rgb(uint8_t r, uint8_t g, uint8_t b){
 static uint16_t pack_rgbp(uint32_t rgb){
 	return pack_rgb(rgb >> 16, (rgb >> 8) & 0xff, rgb & 0xff);
 }
+uint8_t get_lcd_type();
+asm(
+"get_lcd_type:\n"
+" swi 20000e\n"
+" bx lr\n"
+");
 
 void lcd_init(){
 	//asm(" b .");

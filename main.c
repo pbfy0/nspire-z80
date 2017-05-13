@@ -120,6 +120,7 @@ int main(int argc, char **argv){
 	lcd_end();
 #endif
 	interrupt_end();
+	speedcontrol_end();
 	mmap_end();
 	
 	return 0;
