@@ -15,6 +15,7 @@ struct lcd_state {
 struct lcd_state ls = { 0, 0, 0, 8, AUTO_DOWN, TRUE, 0, 0xff };
 //uint8_t video_mem[120*64/8];
 uint8_t *framebuffer;
+uint8_t *fbp;
 uint8_t *bfb;
 volatile uint32_t *palette = (uint32_t *)0xC0000200;
 
@@ -40,14 +41,15 @@ static uint16_t pack_rgbp(uint32_t rgb){
 }
 uint8_t get_lcd_type();
 asm(
-"get_lcd_type:\n"
-" swi 20000e\n"
-" bx lr\n"
-");
+"get_lcd_type:\n\t"
+"swi #0x20000e\n\t"
+"bx lr\n\t"
+);
 
-void lcd_init(){
+void m_lcd_init(){
 	//asm(" b .");
-	framebuffer = malloc(320*240); //SCREEN_BASE_ADDRESS;
+	fbp = malloc(320*240 + 8); //SCREEN_BASE_ADDRESS;
+	framebuffer = (((intptr_t)fbp) | 7) + 1;
 	//lcd_ingray();
 	memset(framebuffer, 0xff, 320*240);
 	*IO_LCD_CONTROL &= (unsigned)~0b00001110;
@@ -72,7 +74,7 @@ void lcd_end(){
 	//IO_LCD_CONTROL |= 0b00000100; // 16 bit color
 	*(volatile byteptr *)0xC0000010 = bfb;
 	lcd_incolor();
-	free(framebuffer);
+	free(fbp);
 }
 /*static void n_set_pixel(int x, int y, uint8_t v){
 	uint8_t *base = framebuffer + FB_OFFSET(x, y);

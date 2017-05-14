@@ -47,7 +47,7 @@ int main(int argc, char **argv){
 #ifdef USE_CSE
 	cselcd_init();
 #else
-	lcd_init();
+	m_lcd_init();
 #endif
 	cpu_init();
 	

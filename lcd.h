@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <os.h>
 
-void lcd_init();
+void m_lcd_init();
 void lcd_end();
 void lcd_cmd(uint8_t);
 void lcd_data(uint8_t);

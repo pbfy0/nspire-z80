@@ -27,6 +27,10 @@ membank *active_map;
 uint8_t normal = 0;
 
 void mmap_init(){
+	//void *aa = aligned_alloc(0x4000, 0x4000);
+	//printf("a %p\n", get_mmu_addr());
+	//printf("b %08x\n", get_mmu_status());
+	//free(aa);
 	ram = calloc(0x20000, 1);
 	memset(banks, 0, sizeof(banks));
 	flash = calloc(FLASH_SIZE, 1);

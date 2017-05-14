@@ -1,31 +1,48 @@
 DEBUG = FALSE
+
 GCC = nspire-gcc
-AS = nspire-as
-GXX=nspire-g++
-LD = nspire-ld-bflt
-GCCFLAGS = -Wall -W -marm -Wno-missing-braces
+AS  = arm-none-eabi-as # nspire-as
+GXX = nspire-g++
+LD  = nspire-ld
+GENZEHN = genzehn
+
+GCCFLAGS = -Wall -W -marm
 LDFLAGS =
+ZEHNFLAGS = --name "nspire-z80"
+
 ifeq ($(DEBUG),FALSE)
 	GCCFLAGS += -O3
 else
 	GCCFLAGS += -O0 -g
-	LDFLAGS += --debug
 endif
-EXE = nspire-z80.tns
-OBJS = $(patsubst %.c,%.o,$(wildcard *.c))
+
+OBJS = $(patsubst %.c, %.o, $(shell find . -name \*.c))
+OBJS += $(patsubst %.cpp, %.o, $(shell find . -name \*.cpp))
+OBJS += $(patsubst %.s, %.o, $(shell find . -name \*.s))
+EXE = nspire-z80
 DISTDIR = build
 vpath %.tns $(DISTDIR)
+vpath %.elf $(DISTDIR)
 
-all: $(EXE)
+all: $(EXE).tns
 
 $(DISTDIR)/%.o: %.c
 	$(GCC) $(GCCFLAGS) -c $< -o $@
-$(DISTDIR)/drz80.o:
-	$(AS) -c drz80.s -o $(DISTDIR)/drz80.o
-$(EXE): $(addprefix $(DISTDIR)/,$(OBJS)) $(DISTDIR)/drz80.o
+
+$(DISTDIR)/%.o: %.cpp
+	$(GXX) $(GCCFLAGS) -c $< -o $@
+	
+$(DISTDIR)/%.o: %.s
+	$(AS) -c $< -o $@
+
+$(EXE).elf: $(addprefix $(DISTDIR)/,$(OBJS))
 	mkdir -p $(DISTDIR)
-	$(LD) $(LDFLAGS) $^ -o $(DISTDIR)/$@
+	$(LD) $^ -o $@ $(LDFLAGS)
+
+$(EXE).tns: $(EXE).elf
+	$(GENZEHN) --input $^ --output $@.zehn $(ZEHNFLAGS)
+	make-prg $@.zehn $@
+	rm $@.zehn
 
 clean:
-	rm -f $(DISTDIR)/*.o $(DISTDIR)/*.elf $(DISTDIR)/*.gdb
-	rm -f $(DISTDIR)/$(EXE)
+	rm -f $(addprefix $(DISTDIR)/,$(OBJS)) $(DISTDIR)/$(EXE).tns $(DISTDIR)/$(EXE).elf $(DISTDIR)/$(EXE).zehn
