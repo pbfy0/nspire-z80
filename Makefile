@@ -1,4 +1,4 @@
-DEBUG = FALSE
+DEBUG = TRUE
 
 GCC = nspire-gcc
 AS  = arm-none-eabi-as # nspire-as
@@ -13,7 +13,7 @@ ZEHNFLAGS = --name "nspire-z80"
 ifeq ($(DEBUG),FALSE)
 	GCCFLAGS += -O3
 else
-	GCCFLAGS += -O0 -g
+	GCCFLAGS += -O1 -g
 endif
 
 OBJS = $(patsubst %.c, %.o, $(shell find . -name \*.c))

@@ -3,7 +3,7 @@
 #include "lcd.h"
 #include "io.h"
 #include "keypad.h"
-#include "mmap.h"
+#include "mmu_mmap.h"
 #include "rtc.h"
 #include "timer.h"
 #include "z_interrupt.h"

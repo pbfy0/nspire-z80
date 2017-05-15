@@ -3,7 +3,7 @@
 #define J(x) &(KEY_84_##x)
 #define KEY_TABLE n_key_ar
 uint8_t mon = 0;
-t_key *n_key_ar[8][7] = {
+const t_key *n_key_ar[8][7] = {
 	{K(DOWN),	K(ENTER),	K(NEGATIVE),K(PERIOD),	K(0),	NULL,		K(EQU)},
 	{K(LEFT),	K(PLUS),	K(3),		K(2),		K(1),	K(FLAG),	K(TRIG)},
 	{K(RIGHT),	K(MINUS),	K(6),		K(5),		K(4),	K(eEXP),		K(EE)},
@@ -14,7 +14,7 @@ t_key *n_key_ar[8][7] = {
 	{NULL,		NULL,		NULL,		K(PI),		K(X),	K(SHIFT),	K(DEL)}
 };
 
-t_key *n_84_key_ar[8][7] = {
+const t_key *n_84_key_ar[8][7] = {
 	{J(DOWN),	J(ENTER),	J(NEGATIVE),J(PERIOD),	J(0),	NULL,		J(GRAPH)},
 	{J(LEFT),	J(PLUS),	J(3),		J(2),		J(1),	J(STO),		J(TRACE)},
 	{J(RIGHT),	J(MINUS),	J(6),		J(5),		J(4),	J(LN),		J(ZOOM)},

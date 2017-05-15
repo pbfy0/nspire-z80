@@ -12,7 +12,7 @@
 #include "lcd.h"
 #include "cselcd.h"
 #include "keypad.h"
-#include "mmap.h"
+#include "mmu_mmap.h"
 #include "io_misc.h"
 #include "z_interrupt.h"
 #include "timer.h"
@@ -66,16 +66,17 @@ void io_init(){
 	ports[0x05].name = "ram page";
 	ports[0x06].name = "memory page A";
 	ports[0x07].name = "memory page B";
-	ports[0x05].out.n = mmap_out;
+	ports[0x05].out.r = mmu_port5_out;
 	ports[0x05].in.n = mmap_in;
-	ports[0x06].mirror =
-	ports[0x07].mirror = &ports[0x05];
+	ports[0x06].out.n = mmu_port67_out;
+	ports[0x06].in.n = mmap_in;
+	ports[0x07].mirror = &ports[0x06];
 	
-	ports[0x0E].name = "memory page A high bits";
+	/*ports[0x0E].name = "memory page A high bits";
 	ports[0x0F].name = "memory page B high bits";
 	ports[0x0E].out.n = mmap_hi_out;
 	ports[0x0E].in.n = mmap_hi_in;
-	ports[0x0F].mirror = &ports[0x0E];
+	ports[0x0F].mirror = &ports[0x0E];*/
 	
 	ports[0x10].name = "lcd command";
 #ifndef USE_CSE

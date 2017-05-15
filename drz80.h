@@ -64,6 +64,7 @@ struct DrZ80
   unsigned int (*z80_rebaseSP)(unsigned short new_sp);
   unsigned int (*z80_rebasePC)(unsigned short new_pc);
   unsigned char Z80_NMI;
+  void (*z80_trace)();
 };
 
 struct DrZ80Regs {
