@@ -26,7 +26,7 @@
       .global DrZ80Ver
 	  
 	  .equiv INTERRUPT_MODE, 		0		;@0 = Use internal int handler, 1 = Use Mames int handler
-	  .equiv FAST_Z80SP,			0		;@0 = Use mem functions for stack pointer, 1 = Use direct mem pointer
+	  .equiv FAST_Z80SP,			1		;@0 = Use mem functions for stack pointer, 1 = Use direct mem pointer
 	  
 .if INTERRUPT_MODE
 	  .extern Interrupt
@@ -486,6 +486,9 @@ DrZ80Ver: .long 0x0001
 .if FAST_Z80SP
 	ldrb r0,[z80sp],#1
 	ldrb r1,[z80sp],#1
+	lsl z80sp, #16
+	lsr z80sp, #16
+	orr z80sp, #0xe0000000
 	orr r0,r0,r1, lsl #8
 .else
 	mov r0,z80sp
@@ -509,6 +512,9 @@ DrZ80Ver: .long 0x0001
 	strb r1,[z80sp,#-1]!
 	mov r1,\reg, lsr #16
 	strb r1,[z80sp,#-1]!
+	lsl z80sp, #16
+	lsr z80sp, #16
+	orr z80sp, #0xe0000000
 .else
 	mov r0,\reg,lsr #16
 	sub z80sp,z80sp,#2
@@ -710,6 +716,9 @@ DrZ80Ver: .long 0x0001
 	mov r1,r0, lsr #8
 	strb r1,[z80sp,#-1]!
 	strb r0,[z80sp,#-1]!
+	lsl z80sp, #16
+	lsr z80sp, #16
+	orr z80sp, #0xe0000000
 .else
 	sub z80sp,z80sp,#2
 	lsl z80sp,#16
@@ -1170,6 +1179,9 @@ DoInterrupt:
 	mov r1,r0, lsr #8
 	strb r1,[z80sp,#-1]!
 	strb r0,[z80sp,#-1]!
+	lsl z80sp, #16
+	lsr z80sp, #16
+	orr z80sp, #0xe0000000
 .else
 	sub z80sp,z80sp,#2
 	lsl z80sp,#16
@@ -1221,6 +1233,9 @@ DoInterrupt_mode0:
 	mov r1,r0, lsr #8
 	strb r1,[z80sp,#-1]!
 	strb r0,[z80sp,#-1]!
+	lsl z80sp, #16
+	lsr z80sp, #16
+	orr z80sp, #0xe0000000
 .else
 	sub z80sp,z80sp,#2
 	lsl z80sp,#16
@@ -1258,6 +1273,9 @@ DoInterrupt_mode1:
 	mov r1,r0, lsr #8
 	strb r1,[z80sp,#-1]!
 	strb r0,[z80sp,#-1]!
+	lsl z80sp, #16
+	lsr z80sp, #16
+	orr z80sp, #0xe0000000
 .else
 	sub z80sp,z80sp,#2
 	lsl z80sp,#16
@@ -1278,6 +1296,9 @@ DoInterrupt_mode2:
 	mov r1,r0, lsr #8
 	strb r1,[z80sp,#-1]!
 	strb r0,[z80sp,#-1]!
+	lsl z80sp, #16
+	lsr z80sp, #16
+	orr z80sp, #0xe0000000
 .else
 	sub z80sp,z80sp,#2
 	lsl z80sp,#16
@@ -4966,6 +4987,9 @@ opcode_C_9:
 .if FAST_Z80SP
 	ldrb r0,[z80sp],#1
 	ldrb r1,[z80sp],#1
+	lsl z80sp, #16
+	lsr z80sp, #16
+	orr z80sp, #0xe0000000
 	orr r0,r0,r1, lsl #8
 .else
 	mov r0,z80sp
@@ -5036,6 +5060,9 @@ opcode_C_D:
 	mov r0,z80pc, lsr #8
 	strb r0,[z80sp,#-1]!
 	strb z80pc,[z80sp,#-1]!
+	lsl z80sp, #16
+	lsr z80sp, #16
+	orr z80sp, #0xe0000000
 	orr r0,r1,r2, lsl #8
 .else
 	mov r0,z80pc
@@ -5327,6 +5354,9 @@ opcode_F_1:
 	sub r0,opcodes,#0x200
 	ldrb z80f,[r0,z80f]
 	ldrb z80a,[z80sp],#1
+	lsl z80sp, #16
+	lsr z80sp, #16
+	orr z80sp, #0xe0000000
 	mov z80a,z80a, lsl #24
 .else
 	mov r0,z80sp
@@ -5367,6 +5397,9 @@ opcode_F_5:
 	sub r0,opcodes,#0x300
 	ldrb r1,[r0,z80f]
 	strb r1,[z80sp,#-1]!
+	lsl z80sp, #16
+	lsr z80sp, #16
+	orr z80sp, #0xe0000000
 .else
 	sub r0,opcodes,#0x300
 	ldrb r0,[r0,z80f]
@@ -7185,6 +7218,9 @@ opcode_DD_E1:
 .if FAST_Z80SP
 	ldrb r0,[z80sp],#1
 	ldrb r1,[z80sp],#1
+	lsl z80sp, #16
+	lsr z80sp, #16
+	orr z80sp, #0xe0000000
 	orr r0,r0,r1, lsl #8
 .else
 	mov r0,z80sp
@@ -7344,6 +7380,9 @@ opcode_ED_4D:
 .if FAST_Z80SP
 	ldrb r0,[z80sp],#1
 	ldrb r1,[z80sp],#1
+	lsl z80sp, #16
+	lsr z80sp, #16
+	orr z80sp, #0xe0000000
 	orr r0,r0,r1, lsl #8
 .else
 	mov r0,z80sp

@@ -25,6 +25,14 @@ __attribute__((naked)) void set_mmu_addr(void *a) {
 	);
 }
 
+__attribute__((naked)) void *invalidate_tlb(void *a) {
+	asm(
+	"mcr p15, 0, r0, c8, c7, 1\n\t"
+	"bx lr\n\t"
+	);
+}
+
+
 __attribute__((naked)) uint32_t get_mmu_status() {
 	asm(
 	"mrc p15, 0, r0, c1, c0, 0\n\t"
@@ -101,6 +109,11 @@ void map_in(int idx, void *base) {
 		sb[i+16] = (b2 + 0x1000 * i) | 0b0010;
 	}
 	clear_cache();
+	for(i = 0; i < 4; i++) {
+		invalidate_tlb(sbl[i] & 0xfffff000);
+		invalidate_tlb(sb[i] & 0xfffff000);
+		invalidate_tlb(sb[i+16] & 0xfffff000);
+	}
 }
 
 unsigned mmap_check_endboot(uint16_t pc){
@@ -130,7 +143,7 @@ uint8_t *flash;
 uint8_t *ram;
 
 void mmap_set_mode(uint8_t mode){
-	//printf("mmu mode -> %d\n", mode);
+	printf("mmu mode -> %d\n", mode);
 	mmu_mode = mode;
 	update67();
 }
@@ -145,11 +158,46 @@ static int bfp(int p){
 uint8_t banks[3];
 
 uint8_t mmap_in(uint8_t port){
+	printf("%d -> %02x\n", port, banks[bfp(port)]);
+	if(port == 5) return banks[2] | 0x80;
 	return banks[bfp(port)];
+}
+
+void empirical_map_test(uint16_t *a, uint16_t b) {
+	int i;
+	for(i = 0; i < 0x2000; i++) {
+		uint16_t r = rand();
+		a[i] = r;//(uint16_t)(r >> 8) | (uint16_t)(r << 8);
+		uint16_t bb = cpu_read16(b + i * 2);
+		if(bb != r) {
+			printf("not consistent - %p = %04x, 0x%04x = %04x\n", a + i, r, b + i * 2, bb);
+			sleep(50);
+		}
+	}
+}
+
+void mmu_test() {
+	printf("mmu test\n");
+	mmap_set_mode(0);
+	int i;
+	for(i = 0; i < 0x20; i++) {
+		mmu_port5_out(i);
+		empirical_map_test(RAM_PAGE(i), 0xc000);
+	}
+	for(i = 0; i < 0x100; i++) {
+		mmu_port67_out(i, 6);
+		empirical_map_test(ROM_PAGE(i), 0x4000);
+	}
+	for(i = 0; i < 0x100; i++) {
+		mmu_port67_out(i, 7);
+		empirical_map_test(ROM_PAGE(i), 0x8000);
+	}
+	printf("end mmu test\n");
 }
 
 void mmu_init() {
 	mmu_base = get_mmu_addr();
+	printf("mmu_base %p\n", mmu_base);
 	mem_base = aligned_alloc(0x1000, RAM_SIZE + FLASH_SIZE);
 	int tbl_size = 4;
 	int t2_size = 0x100;
@@ -162,19 +210,23 @@ void mmu_init() {
 	for(i = 0; i < t2_size; i++) {
 		section_base_l[i] = 0;
 	}
+	memset(mem_base, 0, RAM_SIZE + FLASH_SIZE);
 	map_in(0, ROM_PAGE(0x7f));
-	mmu_port5_out(0);
+	/*mmu_port5_out(0);
 	mmu_port67_out(0, 6);
-	mmu_port67_out(0, 7);
+	mmu_port67_out(0, 7);*/
 	
 	mmu_base[0xdff] = (intptr_t)section_base_l | 0b10001;
 	mmu_base[0xe00] = (intptr_t)section_base | 0b10001;
 	clear_cache();
 	
-	memset(mem_base, 0, RAM_SIZE + FLASH_SIZE);
 	flash = mem_base;
 	ram = mem_base + FLASH_SIZE;
 	printf("flash = %p, ram = %p\n", flash, ram);
+	//mmu_test();
+	mmu_port5_out(0);
+	mmu_port67_out(0, 6);
+	mmu_port67_out(0, 7);
 }
 
 
@@ -192,7 +244,7 @@ static void update67() {
 }
 
 void mmu_port5_out(uint8_t val) {
-	//printf("wrote %02x to port 05\n", val);
+	printf("wrote %02x to port 05\n", val);
 	banks[2] = val;
 	if(mmu_mode == 0) {
 		map_in(3, RAM_PAGE(val));
@@ -201,7 +253,7 @@ void mmu_port5_out(uint8_t val) {
 }
 
 void mmu_port67_out(uint8_t val, uint8_t port) {
-	//printf("wrote %02x to port %02x\n", val, port);
+	printf("wrote %02x to port %02x\n", val, port);
 	banks[port - 6] = val;
 	if(mmu_mode == 0) {
 		map_in(port - 5, ROM_PAGE(val));
