@@ -48,7 +48,7 @@ void interrupt_init(){
 	*ISR_ADDR = (uint32_t) irq_handler;
 	patch_ndless_swi();
 	uint8_t i = is_classic;
-	i ^= i;
+	(void)i;
 	is_touchpad;
 	irq_enable();
 }
@@ -62,7 +62,7 @@ void interrupt_end(){
 	VIC_REG(0x10) = ei_backup;
 }
 
-static void __attribute__((interrupt("IRQ"))) irq_handler(){
+void __attribute__((interrupt("IRQ"))) irq_handler(){
 	//if(keypad->int_stat){
 		//int x = KEY_REG(0x08);
 		//x ^= x;

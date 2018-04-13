@@ -11,9 +11,9 @@ LDFLAGS =
 ZEHNFLAGS = --name "nspire-z80"
 
 ifeq ($(DEBUG),FALSE)
-	GCCFLAGS += -O3
+	GCCFLAGS += -Os
 else
-	GCCFLAGS += -O1 -g
+	GCCFLAGS += -O0 -g
 endif
 
 OBJS = $(patsubst %.c, %.o, $(shell find . -name \*.c))
@@ -34,6 +34,11 @@ $(DISTDIR)/%.o: %.cpp
 	
 $(DISTDIR)/%.o: %.s
 	$(AS) -c $< -o $@
+
+$(DISTDIR)/%_malloc.o: %_malloc.c
+	$(GCC) $(GCCFLAGS) -O1 -c $< -o $@
+
+
 
 $(EXE).elf: $(addprefix $(DISTDIR)/,$(OBJS))
 	mkdir -p $(DISTDIR)

@@ -27,6 +27,7 @@
 	  
 	  .equiv INTERRUPT_MODE, 		0		;@0 = Use internal int handler, 1 = Use Mames int handler
 	  .equiv FAST_Z80SP,			1		;@0 = Use mem functions for stack pointer, 1 = Use direct mem pointer
+;@	  .equiv FIXED_MEMBASE			1		;@ just assume memory is at 0xe0000000
 	  
 .if INTERRUPT_MODE
 	  .extern Interrupt
@@ -37,15 +38,15 @@ DrZ80Ver: .long 0x0001
 ;@---------------------------------------
 
 .macro fetch cycs
-	@stmfd sp!,{r0-r12}
-	@ldr r0,[cpucontext,#z80pc_base]
-	@sub r0,z80pc,r0
-	@bl pdb
-	@ldmfd sp!,{r0-r12}
-	@stmfd sp!,{r0-r4}
-	@mov r0, z80_icount
-	@bl pdb
-	@ldmfd sp!,{r0-r4}
+	;@stmfd sp!,{r0-r12}
+	;@ldr r0,[cpucontext,#z80pc_base]
+	;@sub r0,z80pc,r0
+	;@bl pdb
+	;@ldmfd sp!,{r0-r12}
+	;@stmfd sp!,{r0-r4}
+	;@mov r0, z80_icount
+	;@bl pdb
+	;@ldmfd sp!,{r0-r4}
 	subs z80_icount,z80_icount,#\cycs
 	ldrplb r0,[z80pc],#1
 	ldrpl pc,[opcodes,r0, lsl #2]
@@ -120,10 +121,16 @@ DrZ80Ver: .long 0x0001
 .endm
 
 .macro rebasesp
-	stmfd sp!,{r3,r12}
-	mov lr,pc
-	ldr pc,[cpucontext,#z80_rebaseSP]		;@ external function must rebase sp
-	ldmfd sp!,{r3,r12}
+;@.if FIXED_MEMBASE
+	mov z80sp, r0, lsl#16
+	lsr z80sp, #16
+	orr z80sp, #0xe0000000
+;@.else
+;@	stmfd sp!,{r3,r12}
+;@	mov lr,pc
+;@	ldr pc,[cpucontext,#z80_rebaseSP]		;@ external function must rebase sp
+;@	ldmfd sp!,{r3,r12}
+;@.endif
 .endm
 ;@----------------------------------------------------------------------------
 
@@ -483,6 +490,10 @@ DrZ80Ver: .long 0x0001
 ;@---------------------------------------
 
 .macro opPOP
+;@	b 20f
+;@21: .asciz "Pop  %04x at %04x pc=%04x\n"
+;@	.align 4
+;@20:	
 .if FAST_Z80SP
 	ldrb r0,[z80sp],#1
 	ldrb r1,[z80sp],#1
@@ -490,12 +501,25 @@ DrZ80Ver: .long 0x0001
 	lsr z80sp, #16
 	orr z80sp, #0xe0000000
 	orr r0,r0,r1, lsl #8
+;@	adr r0, 21b
+;@	stmfd sp!, {r1, r3, r12}
+;@	mov r3, z80pc
+;@	bl printf
+;@	ldmfd sp!, {r0, r3, r12}
+;@	;@mov r0, r1
 .else
 	mov r0,z80sp
 	readmem16
+;@	mov r2, z80sp
 	add z80sp,z80sp,#2
 	lsl z80sp,#16
 	lsr z80sp,#16
+;@	mov r1, r0
+;@	push {r0, r3, r12}
+;@	adr r0, 21b
+;@	mov r3, z80pc
+;@	bl printf
+;@	pop {r0, r3, r12}
 .endif
 .endm
 
@@ -507,6 +531,10 @@ DrZ80Ver: .long 0x0001
 ;@---------------------------------------
 
 .macro opPUSHreg reg
+;@	b 20f
+;@21: .asciz "Push %04x at %04x pc=%04x\n"
+;@	.align 4
+;@20:	
 .if FAST_Z80SP
 	mov r1,\reg, lsr #24
 	strb r1,[z80sp,#-1]!
@@ -515,13 +543,27 @@ DrZ80Ver: .long 0x0001
 	lsl z80sp, #16
 	lsr z80sp, #16
 	orr z80sp, #0xe0000000
+;@	adr r0, 21b
+;@	mov r1, \reg, lsr #16
+;@	mov r2, z80sp
+;@	stmfd sp!, {r3, r12}
+;@	mov r3, z80pc
+;@	bl printf
+;@	ldmfd sp!, {r3, r12}
 .else
 	mov r0,\reg,lsr #16
 	sub z80sp,z80sp,#2
 	lsl z80sp,#16
 	lsr z80sp,#16
 	mov r1,z80sp
+;@	push {r0, r1}
 	writemem16
+;@	pop {r1, r2}
+;@	adr r0, 21b
+;@	stmfd sp!, {r3, r12}
+;@	mov r3, z80pc
+;@	bl printf
+;@	ldmfd sp!, {r3, r12}
 .endif
 .endm
 ;@---------------------------------------
@@ -4311,7 +4353,6 @@ opcode_3_1:
 .if FAST_Z80SP
 	orr r0,r0,r1, lsl #8
 	rebasesp
-	mov z80sp,r0
 .else
 	orr z80sp,r0,r1, lsl #8
 .endif
@@ -4329,6 +4370,9 @@ opcode_3_3:
 	add z80sp,z80sp,#1
 	lsl z80sp,#16
 	lsr z80sp,#16
+.if FAST_Z80SP
+	orr z80sp,#0xe0000000
+.endif
 	fetch 6
 ;@INC (HL)
 opcode_3_4:
@@ -4381,6 +4425,9 @@ opcode_3_B:
 	sub z80sp,z80sp,#1
 	lsl z80sp,#16
 	lsr z80sp,#16
+.if FAST_Z80SP
+	orr z80sp,#0xe0000000
+.endif
 	fetch 6
 ;@INC A
 opcode_3_C:
@@ -5430,7 +5477,7 @@ opcode_F_9:
 .if FAST_Z80SP
 	mov r0,z80hl, lsr #16
 	rebasesp
-	mov z80sp,r0
+	;@mov z80sp,r0
 .else
 	mov z80sp,z80hl, lsr #16
 .endif
@@ -7271,7 +7318,7 @@ opcode_DD_F9:
 .if FAST_Z80SP
 	ldrh r0,[z80xx,#2]
 	rebasesp
-	mov z80sp,r0
+	;@mov z80sp,r0
 .else
 	ldrh z80sp,[z80xx,#2]
 .endif
@@ -7622,8 +7669,9 @@ opcode_ED_7B:
 	readmem16
 .if FAST_Z80SP
 	rebasesp
-.endif
+.else
 	mov z80sp,r0
+.endif
 	fetch 20
 ;@LDI
 opcode_ED_A0:

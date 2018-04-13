@@ -39,6 +39,11 @@ static uint16_t pack_rgb(uint8_t r, uint8_t g, uint8_t b){
 static uint16_t pack_rgbp(uint32_t rgb){
 	return pack_rgb(rgb >> 16, (rgb >> 8) & 0xff, rgb & 0xff);
 }
+static uint16_t pack_gry(uint8_t v) {
+	uint8_t z = v & 1;
+	v >>= 1;
+	return v | (v << 5) | (v << 10) | (z << 15);
+}
 uint8_t get_lcd_type();
 asm(
 "get_lcd_type:\n\t"
@@ -53,16 +58,16 @@ void m_lcd_init(){
 	//lcd_ingray();
 	memset(framebuffer, 0xff, 320*240);
 	*IO_LCD_CONTROL &= (unsigned)~0b00001110;
-	*IO_LCD_CONTROL |= (unsigned)0b00000110; // 8 bpp, palette
+	*IO_LCD_CONTROL |= (unsigned) 0b00000110; // 8 bpp, palette
 	
 	bfb = *(volatile byteptr *)0xC0000010;
 	*(volatile byteptr *)0xC0000010 = framebuffer;
 	
 	
-	palette[0] = 0x0000ffff;
+	palette[0] = pack_gry(0xff >> 2);
 	palette[1] = pack_rgbp(0xff0000);
 	//palette[1] = 0xffff;
-	palette[0xff >> 1] = pack_rgbp(0xaaaaaa) << 16; //0b0101011010110101 << 16;//
+	palette[0xff >> 1] = pack_gry(0xaa >> 2) << 16; //0b0101011010110101 << 16;//
 	int y;
 	for(y = 0; y < 64*3; y++){
 		memset(framebuffer + XY_TO_FBO(C_XO, y+C_YO), 0, 96*3);
@@ -172,9 +177,11 @@ static uint8_t get_pixel(int x, int y){
 }
 
 void set_contrast(uint8_t contrast){
+	//printf("set_contrast %d\n", set_contrast);
 	int black = contrast;
 	int white = 0xff - contrast;
-	palette[0] = pack_rgb(black, black, black) << 16 | pack_rgb(white, white, white);
+	palette[0] = (pack_gry(black) << 16) | pack_gry(white);
+	printf("%d %d %d %04x\n", contrast, black, white, palette[0]);
 	ls.contrast = contrast;
 }
 
