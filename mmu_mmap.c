@@ -7,10 +7,13 @@
 #ifdef USE_CSE
 #define FLASH_SIZE 0x400000
 #define BOOT_PAGE 0xff
+#define EF_MASK 1
 #else
 #define FLASH_SIZE 0x200000
 #define BOOT_PAGE 0x7f
+#define EF_MASK 0
 #endif
+
 #define RAM_SIZE 0x20000
 #define PAGE_SIZE 0x4000
 #define FLASH_PAGES (FLASH_SIZE / PAGE_SIZE)
@@ -170,7 +173,7 @@ struct bank {
 
 
 static unsigned off_for_bank(struct bank b) {
-	return b.low & 0x80 ? (unsigned)b.low - 0x80 + FLASH_PAGES : (unsigned)b.low | ((unsigned)b.hi & 1) << 7;
+	return b.low & 0x80 ? (unsigned)b.low - 0x80 + FLASH_PAGES : (unsigned)b.low | ((unsigned)b.hi & EF_MASK) << 7;
 }
 
 static void map_page(int idx, unsigned page) {
