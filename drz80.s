@@ -495,6 +495,7 @@ DrZ80Ver: .long 0x0001
 ;@	.align 4
 ;@20:	
 .if FAST_Z80SP
+;@	mov r2, z80sp
 	ldrb r0,[z80sp],#1
 	ldrb r1,[z80sp],#1
 	lsl z80sp, #16
@@ -4353,6 +4354,7 @@ opcode_3_1:
 .if FAST_Z80SP
 	orr r0,r0,r1, lsl #8
 	rebasesp
+	;@mov z80sp,r0
 .else
 	orr z80sp,r0,r1, lsl #8
 .endif

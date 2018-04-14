@@ -80,7 +80,7 @@ __attribute__((naked)) void _free(void *ptr) {
 	);
 }*/
 
-#include "_malloc.h"
+#include "_syscalls.h"
 
 void *aligned_alloc(size_t alignment, size_t size) { // alignment must be a power of two and this is a little broken
 	void *b = _malloc(size + alignment);
