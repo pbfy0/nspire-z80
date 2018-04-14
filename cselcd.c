@@ -43,8 +43,9 @@ void cselcd_data_out(uint8_t val){
 	//printf("cselcd_data_out\n");
 	if(writing_data){
 		writing_data = 0;
-		cselcd_data_set(port_idx & 0xff, data_write_hi << 8 | val);
-		//printf("%04x -> p%04x\n", data_write_hi << 8 | val, port_idx);
+		unsigned v = (unsigned)data_write_hi << 8 | (unsigned)val;
+		cselcd_data_set(port_idx & 0xff, v);
+		if(port_idx & 0xff != 0x22) printf("%04x -> p%04x\n", v, port_idx);
 	}else{
 		writing_data = 1;
 		data_write_hi = val;
@@ -59,7 +60,7 @@ uint8_t cselcd_data_in(){
 		return data_read_lo;
 	}else{
 		uint16_t t = cselcd_data_get(port_idx & 0xff);
-		//printf("%04x <- p%04x\n", t, port_idx);
+		if(port_idx & 0xff != 0x22) printf("%04x <- p%04x\n", t, port_idx);
 		reading_data = 1;
 		data_read_lo = t & 0xff;
 		return t >> 8;

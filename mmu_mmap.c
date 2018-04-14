@@ -6,8 +6,10 @@
 
 #ifdef USE_CSE
 #define FLASH_SIZE 0x400000
+#define BOOT_PAGE 0xff
 #else
 #define FLASH_SIZE 0x200000
+#define BOOT_PAGE 0x7f
 #endif
 #define RAM_SIZE 0x20000
 #define PAGE_SIZE 0x4000
@@ -161,9 +163,23 @@ static void map_in(int idx, void *base, bool ro) {
 	}
 }
 
+struct bank {
+	uint8_t low;
+	uint8_t hi;
+};
+
+
+static unsigned off_for_bank(struct bank b) {
+	return b.low & 0x80 ? (unsigned)b.low - 0x80 + FLASH_PAGES : (unsigned)b.low | ((unsigned)b.hi & 1) << 7;
+}
 
 static void map_page(int idx, unsigned page) {
+	//print("map_page idx %d page %d\n", idx, page);
 	map_in(idx, ROM_PAGE(page), page < FLASH_PAGES);
+}
+
+static void map_page_st(int idx, struct bank page) {
+	map_page(idx, off_for_bank(page));
 }
 
 unsigned mmap_check_endboot(uint16_t pc){
@@ -207,12 +223,14 @@ static int bfp(int p){
 	}
 	return 0;
 }
-uint8_t banks[3];
+
+struct bank banks[3] = {0};
+
 
 uint8_t mmap_in(uint8_t port){
 	//printf("%d -> %02x\n", port, banks[bfp(port)]);
-	if(port == 5) return banks[2] | 0x80;
-	return banks[bfp(port)];
+	if(port == 5) return banks[2].low & ~0x80;
+	return banks[bfp(port)].low;
 }
 
 #ifdef MMU_DEBUG
@@ -305,7 +323,7 @@ void mmu_init() {
 	set_cr1(aa | 1<<9); // enable ROM protection
 	//printf("cr1 = %08x", get_cr1());
 	memset(mem_base, 0, RAM_SIZE + FLASH_SIZE);
-	map_in(0, ROM_PAGE(0x7f), 1);
+	map_in(0, ROM_PAGE(BOOT_PAGE), 1);
 	/*mmu_port5_out(0);
 	mmu_port67_out(0, 6);
 	mmu_port67_out(0, 7);*/
@@ -333,13 +351,13 @@ void mmu_init() {
 
 static void update67() {
 	if(mmu_mode == 0) {
-		map_page(1, banks[0]);
-		map_page(2, banks[1]);
-		map_page(3, FLASH_PAGES + banks[2]);
+		map_page_st(1, banks[0]);
+		map_page_st(2, banks[1]);
+		map_page_st(3, banks[2]);
 	} else {
-		map_page(1, banks[0] & ~1);
-		map_page(2, banks[0] | 1);
-		map_page(3, banks[1]);
+		map_page(1, off_for_bank(banks[0]) & ~1);
+		map_page(2, off_for_bank(banks[0]) | 1);
+		map_page_st(3, banks[1]);
 	}
 	//clear_cache();
 }
@@ -348,10 +366,22 @@ void mmu_port5_out(uint8_t val) {
 #ifdef MMU_DEBUG
 	if(!testing) printf("wrote %02x to port 05\n", val);
 #endif
-	banks[2] = val;
+	banks[2].low = val | 0x80;
 	if(mmu_mode == 0) {
-		map_in(3, RAM_PAGE(val), 0);
+		map_page_st(3, banks[2]);
+		//map_in(3, ROM_PAGE(val), 0);
 		//clear_cache();
+	}
+}
+
+static void mmu_port67_update(uint8_t port) {
+	if(mmu_mode == 0) {
+		map_page_st(port, banks[port - 1]);
+	} else if(port == 1) {
+		map_page(1, off_for_bank(banks[0]) & ~1);
+		map_page(2, off_for_bank(banks[0]) | 1);
+	} else if(port == 2) {
+		map_page_st(3, banks[1]);
 	}
 }
 
@@ -359,16 +389,21 @@ void mmu_port67_out(uint8_t val, uint8_t port) {
 #ifdef MMU_DEBUG
 	if(!testing) printf("wrote %02x to port %02x\n", val, port);
 #endif
-	banks[port - 6] = val;
-	if(mmu_mode == 0) {
-		map_page(port - 5, val);
-	} else if(port == 6) {
-		map_page(1, val & ~1);
-		map_page(2, val | 1);
-	} else if(port == 7) {
-		map_page(3, val);
-	}
+	banks[port - 6].low = val;
+	mmu_port67_update(port - 5);
 	//clear_cache();
+}
+
+void mmu_portEF_out(uint8_t val, uint8_t port) {
+#ifdef MMU_DEBUG
+	if(!testing) printf("wrote %02x to port %02x\n", val, port);
+#endif
+	banks[port - 0xe].hi = val;
+	mmu_port67_update(port - 0xd);
+}
+
+uint8_t mmu_portEF_in(uint8_t port) {
+	return banks[port - 0xe].hi;
 }
 
 

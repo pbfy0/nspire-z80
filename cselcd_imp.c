@@ -10,9 +10,13 @@ uint8_t cselcd_auto_horiz = 1;
 uint8_t cselcd_vert_inc = 1;
 uint8_t cselcd_horiz_inc = 1;
 uint8_t cselcd_bgr = 1;
+uint8_t cselcd_tri = 0;
 
 uint16_t cselcd_pos_x = 0;
 uint16_t cselcd_pos_y = 0;
+
+uint16_t cselcd_s_pos_x = 0;
+uint16_t cselcd_s_pos_y = 0;
 
 uint16_t cselcd_win_ymin = 0x0000;
 uint16_t cselcd_win_ymax = 0x00EF;
@@ -33,6 +37,9 @@ void cselcd_entry_out(uint16_t val);
 void cselcd_wraparound_x();
 void cselcd_wraparound_y();
 void cselcd_auto_move();
+
+void cselcd_set_pos_x(uint16_t v);
+void cselcd_set_pos_y(uint16_t v);
 
 void cselcd_i_init() {
 	cse_framebuffer = malloc(320 * 240 * 2);
@@ -72,8 +79,11 @@ void cselcd_i_init() {
 	cselcd_ports[0x3C].value = 0x0103; // Gamma Control 9
 	cselcd_ports[0x3D].value = 0x0004; // Gamma Control 10
 	
-	cselcd_ports[0x20].ptr_value = &cselcd_pos_y;
-	cselcd_ports[0x21].ptr_value = &cselcd_pos_x;
+	cselcd_ports[0x20].ptr_value = &cselcd_s_pos_y;
+	cselcd_ports[0x21].ptr_value = &cselcd_s_pos_x;
+	cselcd_ports[0x20].out = &cselcd_set_pos_y;
+	cselcd_ports[0x21].out = &cselcd_set_pos_x;
+	
 	cselcd_ports[0x50].ptr_value = &cselcd_win_ymin;
 	cselcd_ports[0x51].ptr_value = &cselcd_win_ymax;
 	cselcd_ports[0x52].ptr_value = &cselcd_win_xmin;
@@ -82,6 +92,18 @@ void cselcd_i_init() {
 	cselcd_ports[0x22].out = cselcd_i_data_out;
 	cselcd_ports[0x22].in = cselcd_i_data_in;
 	
+}
+
+void cselcd_set_pos_x(uint16_t v) {
+	cselcd_s_pos_x = v;
+	cselcd_pos_x = cselcd_s_pos_x;
+	cselcd_pos_y = cselcd_s_pos_y;
+}
+
+void cselcd_set_pos_y(uint16_t v) {
+	cselcd_s_pos_y = v;
+	cselcd_pos_x = cselcd_s_pos_x;
+	cselcd_pos_y = cselcd_s_pos_y;
 }
 
 void cselcd_i_end(){
@@ -161,4 +183,5 @@ void cselcd_entry_out(uint16_t val){
 	cselcd_vert_inc = (val & LCD_VERT_INC) && 1;
 	cselcd_horiz_inc = (val & LCD_HORIZ_INC) && 1;
 	cselcd_bgr = (val & LCD_BGR) && 1;
+	cselcd_tri = (val & LCD_TRI) && 1;
 }

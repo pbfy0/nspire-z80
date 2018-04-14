@@ -28,9 +28,15 @@ struct io_state {
 	uint8_t usb_event_mask;
 };
 
-struct io_state is = {3 | 2<<4, 0, 0, 0};
+#ifdef USE_CSE
+#define I_FLASH_SIZE 2
+#else
+#define I_FLASH_SIZE 1
+#endif
 
-struct z80port ports[0x100] = {0};
+struct io_state is = {I_FLASH_SIZE | 2<<4, 0, 0, 0};
+
+struct z80port ports[0x100];
 
 void memsize_set(uint8_t val);
 void port4_out(uint8_t val);
@@ -41,7 +47,8 @@ uint8_t status_in();
 void io_init(){
 	int i;
 	for(i = 0; i < 0x100; i++){
-		ports[i].number = i;
+		ports[i] = (struct z80port){.number = i};
+		//ports[i].number = i;
 	}
 	
 	ports[0x00].name = "link port";
@@ -72,11 +79,11 @@ void io_init(){
 	ports[0x06].in.n = mmap_in;
 	ports[0x07].mirror = &ports[0x06];
 	
-	/*ports[0x0E].name = "memory page A high bits";
+	ports[0x0E].name = "memory page A high bits";
 	ports[0x0F].name = "memory page B high bits";
-	ports[0x0E].out.n = mmap_hi_out;
-	ports[0x0E].in.n = mmap_hi_in;
-	ports[0x0F].mirror = &ports[0x0E];*/
+	ports[0x0E].out.n = mmu_portEF_out;
+	ports[0x0E].in.n = mmu_portEF_in;
+	ports[0x0F].mirror = &ports[0x0E];
 	
 	ports[0x10].name = "lcd command";
 #ifndef USE_CSE
