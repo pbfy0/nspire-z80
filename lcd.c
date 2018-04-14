@@ -111,6 +111,8 @@ asm(
 ".align 2\n"
 "px_offsets:\n\t"
 	".hword 0, 1, 2, 320, 321, 322, 640, 641, 642\n\t"
+"px_offsets_hww:\n\t"
+	".hword 0, 1, 2, 240, 241, 242, 480, 481, 482\n\t"
 );
 
 
@@ -144,7 +146,7 @@ asm(
 "	mov r4, #240\n"
 "	mla r3, r0, r4, r3\n"
 "	add r3, r1\n"
-"	adr r4, px_offsets\n"
+"	adr r4, px_offsets_hww\n"
 "	mov r0, #18\n"
 "1:	subs r0, #2\n"
 "	ldrh r1, [r4, r0]\n"
