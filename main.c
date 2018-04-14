@@ -4,7 +4,7 @@
 #include "interrupt.h"
 #include "z_interrupt.h"
 #include "io.h"
-#include "mmap.h"
+#include "mmu_mmap.h"
 #include "lcd.h"
 #include "timer.h"
 #include "speedcontrol.h"
@@ -12,12 +12,12 @@
 #include "rtc.h"
 
 void cpu_init();
-unsigned int cpu_rebasePC(unsigned short x);
-unsigned int cpu_rebaseSP(unsigned short x);
-unsigned short cpu_read16(unsigned short idx);
-unsigned char cpu_read8(unsigned short idx);
-void cpu_write16(unsigned short val, unsigned short idx);
-void cpu_write8(unsigned char val, unsigned short idx);
+unsigned int cpu_rebasePC(uint32_t x);
+unsigned int cpu_rebaseSP(uint32_t x);
+unsigned short cpu_read16(uint32_t idx);
+unsigned char cpu_read8(uint32_t idx);
+void cpu_write16(unsigned short val, uint32_t idx);
+void cpu_write8(unsigned char val, uint32_t idx);
 unsigned char cpu_in(unsigned short port);
 //static unsigned char cpu_in_(unsigned short port);
 void cpu_out(unsigned short port, unsigned char val);
@@ -36,14 +36,16 @@ struct DrZ80 ZCpu;
 volatile uint8_t flag;
 
 int main(int argc, char **argv){
+	printf("main = %p\n", main);
 	if(argc == 1){
 		cfg_register_fileext("8rom", "nspire-z80");
 		cfg_register_fileext("8sav", "nspire-z80");
 		show_msgbox("Info", "File extension registered. Open a 8rom file to use.");
 		return 0;
 	}
-	
-	mmap_init();
+	printf("begin\n");
+	mmu_init();
+	printf("mmu_init done\n");
 #ifdef USE_CSE
 	cselcd_init();
 #else
@@ -52,6 +54,23 @@ int main(int argc, char **argv){
 	cpu_init();
 	
 	io_init();
+	printf("lcd, cpu, io done\n");
+	/*int q;
+	for(q = 0; q < 8; q++)
+		cpu_out(5, q);
+	for(q = 0; q < 0x88; q++)
+		cpu_out(6, q);
+	for(q = 0; q < 0x88; q++)
+		cpu_out(7, q);
+	mmap_set_mode(1);
+	printf("----\n");
+	for(q = 0; q < 8; q++)
+		cpu_out(5, q);
+	for(q = 0; q < 0x88; q++)
+		cpu_out(6, q);
+	for(q = 0; q < 0x88; q++)
+		cpu_out(7, q);*/
+	
 	
 	int l = strlen(argv[1]);
 	char *sav_romname = NULL;
@@ -68,8 +87,10 @@ int main(int argc, char **argv){
 		fseek(romfile, 0, 0);
 		//printf("%d\n", romsize);
 		//flash = calloc(0x20000, 1);
+		printf("%08x\n", flash);
 		fread(flash, sizeof(char), romsize, romfile);
 		fclose(romfile);
+		clear_cache();
 	}
 	
 	//asm(" b .");
@@ -87,15 +108,22 @@ int main(int argc, char **argv){
 	
 	timer_set_enabled(1);
 	timer_freq_set(3);
+	uint32_t *mem32 = (uint32_t *)0xe0000000;
+	printf("%08x %08x %08x\n", mem32[0], mem32[1], mem32[2]);
+	//asm volatile("b .\n\t");
 	while(1){
+		//printf("asdasd %08x\n", ZCpu.Z80PC);
 		int cyca = DrZ80Run(&ZCpu, cycs);
 		int cyce = cycs == cyca ? 100 : cycs - cyca;
 		//printf("%d %08x\n", cycs, *(volatile uint32_t *)(0x900C0004));
 		//printf("%d\n", cyce);
 		char *pc = (char *)ZCpu.Z80PC;
 		int pcb = ZCpu.Z80PC - ZCpu.Z80PC_BASE;
-		//if(isKeyPressed(KEY_NSPIRE_CAT))
-		//	printf("%d %d %02x %04x %02x%02x%02x%02x\n", i++, cyce, mmap_get_active_page(ZCpu.Z80PC), pcb, pc[0], pc[1], pc[2], pc[3]);//, ZCpu.Z80BC);
+		if(isKeyPressed(KEY_NSPIRE_CAT)) {
+			printf("%d %d %04x %02x%02x%02x%02x\n", i++, cyce, pcb, pc[0], pc[1], pc[2], pc[3]);//, ZCpu.Z80BC);
+			printf("a	%02x	f	%02x	bc	%04x	de	%04x	hl	%04x\n", ZCpu.Z80A >> 24, ZCpu.Z80F >> 24, ZCpu.Z80BC >> 16, ZCpu.Z80DE >> 16, ZCpu.Z80HL >> 16);
+			printf("sp	%04x	ix	%04x	iy	%04x\n", ZCpu.Z80SP - ZCpu.Z80SP_BASE, ZCpu.Z80IX >> 16, ZCpu.Z80IY >> 16);
+		}
 		
 		cycs = timer_after(cyce);
 		if(isKeyPressed(KEY_NSPIRE_ESC)) break;
@@ -121,25 +149,34 @@ int main(int argc, char **argv){
 #endif
 	interrupt_end();
 	speedcontrol_end();
-	mmap_end();
+	mmu_end();
 	
 	return 0;
 }
 
+void cpu_trace() {
+	uint8_t *pc = ZCpu.Z80PC;
+	printf("XX XX %04x %02x%02x%02x%02x\n", pc - ZCpu.Z80PC_BASE, pc[0], pc[1], pc[2], pc[3]);//, ZCpu.Z80BC);
+	printf("a   %02x	f   %02x	bc  %04x	de  %04x	hl  %04x\n", ZCpu.Z80A >> 24, ZCpu.Z80F >> 24, ZCpu.Z80BC >> 16, ZCpu.Z80DE >> 16, ZCpu.Z80HL >> 16);
+	printf("sp  %04x	ix  %04x	iy  %04x\n", ZCpu.Z80SP - ZCpu.Z80SP_BASE, ZCpu.Z80IX >> 16, ZCpu.Z80IY >> 16);
+}
 
 void cpu_init(){
 	memset(&ZCpu, 0, sizeof(ZCpu));
 	ZCpu.z80_rebasePC=cpu_rebasePC;
-	ZCpu.z80_rebaseSP=cpu_rebaseSP;
-	ZCpu.z80_read8   =cpu_read8;
-	ZCpu.z80_read16  =cpu_read16;
-	ZCpu.z80_write8  =cpu_write8;
-	ZCpu.z80_write16 =cpu_write16;
+	ZCpu.z80_rebaseSP= cpu_rebaseSP;
+	ZCpu.z80_read8   = cpu_read8;
+	ZCpu.z80_read16  = cpu_read16;
+	ZCpu.z80_write8  = cpu_write8;
+	ZCpu.z80_write16 = cpu_write16;
 	ZCpu.z80_in      =cpu_in;
 	ZCpu.z80_out     =cpu_out;
 	ZCpu.z80_irq_callback = cpu_irq_callback;
-	ZCpu.Z80PC = cpu_rebasePC(0);
-	ZCpu.Z80SP = 0xffff;//cpu_rebaseSP(0xffff);
+	ZCpu.z80_trace = cpu_trace;
+	ZCpu.Z80PC = 0xe0000000;//cpu_rebasePC(0);
+	ZCpu.Z80PC_BASE = 0xe0000000;//cpu_rebasePC(0);
+	ZCpu.Z80SP = 0xe000ffff;//cpu_rebaseSP(0xffff);
+	ZCpu.Z80SP_BASE = 0xe0000000;//cpu_rebaseSP(0);
 }
 
 void cpu_irq_callback(){
@@ -147,61 +184,95 @@ void cpu_irq_callback(){
 	int_callback();
 }
 
-void pdb(unsigned int pc){
+/*void pdb(unsigned int pc){
 	printf("pc(a) %02x v %04x\n", pc, cpu_read16(pc));
+}*/
+
+unsigned int null_rebasePC(uint32_t x) {
+	return 0xe0000000 + (x & 0xffff);
 }
 
-unsigned int cpu_rebasePC(unsigned short x){
+unsigned int cpu_rebasePC(uint32_t x){
 	//if(x == 0) printf("reset\n");
-	//printf("rebasePC 0x%x\n", x);
+	//printf("rebasePC 0x%04x\n", x);
 	//ZCpu.Z80PC_BASE = (unsigned int)flash;
-	mmap_check_endboot(x);
-	ZCpu.Z80PC_BASE = (unsigned int)mmap_base_addr(x);
+	//if(mmap_check_endboot(x)) ZCpu.z80_rebasePC = NULL; 
+	x &= 0xffff;
+	if(mmap_check_endboot(x)) ZCpu.z80_rebasePC = null_rebasePC;
+	//ZCpu.Z80PC_BASE = (unsigned int)mmap_base_addr(x);
 	//if(ZCpu.Z80PC_BASE + (x & 0x3FFF) != flash + x) printf("pc %08x %p\n", ZCpu.Z80PC_BASE + (x & 0x3FFF), flash + x);
 	//printf("pc %p %08x\n", mmap_bank_for_addr(x) + (x & 0x3FFF), ZCpu.Z80PC_BASE + x);
 	//return ZCpu.Z80PC_BASE + x;
-	return ZCpu.Z80PC_BASE + x;//(x & 0x3FFF);
+	return 0xe0000000 + x;
 }
 
-unsigned int cpu_rebaseSP(unsigned short x){
-	printf("rebaseSP 0x%x\n", x);
+unsigned int cpu_rebaseSP(uint32_t x){
+	//printf("rebaseSP 0x%lx\n", x);
 	//ZCpu.Z80SP_BASE = (unsigned int)flash;
-	ZCpu.Z80SP_BASE = (unsigned int)mmap_base_addr(x);
+	//ZCpu.Z80SP_BASE = (unsigned int)mmap_base_addr(x);
 	//if(ZCpu.Z80SP_BASE + (x & 0x3FFF) != flash + x) printf("sp %08x %p\n", ZCpu.Z80SP_BASE + (x & 0x3FFF), flash + x);
 	//return ZCpu.Z80SP_BASE + x;
-	return ZCpu.Z80SP_BASE + x;//(x & 0x3FFF);
-}
+	return 0xe0000000 + (x & 0xffff);//=(x & 0x3FFF);
+} 
 
-unsigned short cpu_read16(unsigned short idx){
-	//printf("read16 0x%x\n", idx);
+unsigned short cpu_read16(uint32_t idx){
 	//asm(" b .");
 	//uint8_t *p = flash+idx;
 	//if(mmap_z80_to_arm(idx) != flash+idx) printf("read16 0x%x\n", idx);
-	uint8_t *p = mmap_z80_to_arm(idx);
-	return p[0] | p[1] << 8;
+	uint8_t *p = 0xe0000000 + (idx & 0xffff);
+	if(idx & ~0xffff)
+		printf("Invalid read16: %p %04x\n", p, idx);
+	uint16_t val = p[0] | p[1] << 8;
+#ifdef MEM16_DEBUG
+	printf("Read %04x at %08x\n", val, p);
+#endif
+	/*if(idx < 0x4000) {
+		uint8_t *p2;
+		for(p2 = p - 8; p2 < p + 8; p2++) {
+			printf("%02x ", *p2);
+		}
+		printf("\n");
+		printf("read16 %p 0x%04x -> %02x %02x = 0x%04x\n", p, idx, p[1], p[0], val);
+		asm volatile("b .\n\t");
+	}
+	val = p[0] | p[1] << 8;
+	printf("read16 2.0 %p 0x%04x -> %02x %02x = 0x%04x\n", p, idx, p[1], p[0], val);*/
+	return val;
 }
-unsigned char cpu_read8(unsigned short idx){
-	//printf("read8 0x%x\n", idx);
+unsigned char cpu_read8(uint32_t idx){
 	//return flash[idx];
 	//if(mmap_z80_to_arm(idx) != flash+idx) printf("read8 0x%x\n", idx);
-	return *(mmap_z80_to_arm(idx));
+	uint8_t *p = (uint8_t *)0xe0000000 + idx;//(idx & 0xffff);
+	if(idx & ~0xffff)
+		printf("Invalid read8: %p %04x\n", p, idx);
+	uint8_t val = *p;
+	//if(idx < 0x4000) printf("read8 0x%04x -> %02x\n", idx, val);
+	return val;
 }
 
-void cpu_write16(unsigned short val, unsigned short idx){
-	uint8_t *p = mmap_z80_to_arm(idx);
-	if(!((p >= flash && p < flash + FLASH_SIZE) || (p >= ram && p < ram + RAM_SIZE)))
-		printf("Invalid memory access: %p %04x\n", p, idx);
-	//printf("write16 %08x (0x%04x) 0x%04x\n", p, idx, val);
+void cpu_write16(unsigned short val, uint32_t idx){
+	uint8_t *p = 0xe0000000 + (idx & 0xffff);
+#ifdef MEM16_DEBUG
+	printf("Wrt  %04x at %08x\n", val, p);
+#endif
+	//if(!((p >= flash && p < flash + FLASH_SIZE) || (p >= ram && p < ram + RAM_SIZE)))
+	if(idx & ~0xffff) {
+		printf("Invalid write16: %p %04x\n", p, idx);
+		cpu_trace();
+		asm("bkpt\n\t");
+	}
+	//if(idx < 0x4000) printf("write16 %p 0x%04x 0x%04x\n", p, idx, val);
 	//uint8_t *p = flash + idx;
 	p[0] = val & 0xff;
 	p[1] = val >> 8;
 }
 
-void cpu_write8(unsigned char val, unsigned short idx){
-	uint8_t *p = mmap_z80_to_arm(idx);
-	if(!((p >= flash && p < flash + FLASH_SIZE) || (p >= ram && p < ram + RAM_SIZE)))
-		printf("Invalid memory access: %p %04x\n", p, idx);
-	//printf("write8 %08x (0x%04x) 0x%02x\n", ptr, idx, val);
+void cpu_write8(unsigned char val, uint32_t idx){
+	uint8_t *p = 0xe0000000 + (idx & 0xffff);
+	//if(!((p >= flash && p < flash + FLASH_SIZE) || (p >= ram && p < ram + RAM_SIZE)))
+	if(idx & ~0xffff)
+		printf("Invalid write8: %p %04x\n", p, idx);
+	//if(idx < 0x4000) printf("write8 0x%04x 0x%02x\n", idx, val);
 	*p = val;
 	//flash[idx] = val;
 }
@@ -215,7 +286,7 @@ unsigned char cpu_in(unsigned short pn_){
 	uint8_t pn = (uint8_t)pn_;
 	struct z80port *p = &ports[pn];
 	uint8_t v = port_get(pn, p);
-	//if(p->mirror) printf("Read %02x from port %02x (%s)\n", v, p->number, p->name);
+	//printf("Read %02x from port %02x (%s)\n", v, p->number, p->name);
 	return v;
 }
 
@@ -226,7 +297,7 @@ void cpu_out(unsigned short pn_, unsigned char val){
 	//asm(" mov r0, r6");
 	//uint16_t zpc = temp - ZCpu.Z80PC_BASE;
 	port_set(pn, p, val);
-	//if(p->mirror) printf("Wrote %02x to port %02x (%s)\n", val, p->number, p->name);
+	//printf("Wrote %02x to port %02x (%s)\n", val, p->number, p->name);
 	//temp = cpu_rebasePC(zpc);
 	//asm(" mov r6, r0"); // do not try this at home
 }

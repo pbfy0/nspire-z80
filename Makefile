@@ -1,4 +1,4 @@
-DEBUG = FALSE
+DEBUG ?= TRUE
 
 GCC = nspire-gcc
 AS  = arm-none-eabi-as # nspire-as
@@ -8,10 +8,10 @@ GENZEHN = genzehn
 
 GCCFLAGS = -Wall -W -marm
 LDFLAGS =
-ZEHNFLAGS = --name "nspire-z80"
+ZEHNFLAGS = --name "nspire-z80" --uses-lcd-blit false --240x320-support true
 
 ifeq ($(DEBUG),FALSE)
-	GCCFLAGS += -O3
+	GCCFLAGS += -Os
 else
 	GCCFLAGS += -O0 -g
 endif
@@ -34,6 +34,11 @@ $(DISTDIR)/%.o: %.cpp
 	
 $(DISTDIR)/%.o: %.s
 	$(AS) -c $< -o $@
+
+$(DISTDIR)/%_o1.o: %_o1.c
+	$(GCC) $(GCCFLAGS) -O1 -c $< -o $@
+
+
 
 $(EXE).elf: $(addprefix $(DISTDIR)/,$(OBJS))
 	mkdir -p $(DISTDIR)

@@ -1,6 +1,8 @@
 #include <os.h>
 #include "lcd.h"
 #include "util.h"
+#include "_syscalls.h"
+
 struct lcd_state {
 	int cur_row;
 	int cur_col;
@@ -17,20 +19,32 @@ struct lcd_state ls = { 0, 0, 0, 8, AUTO_DOWN, TRUE, 0, 0xff };
 uint8_t *framebuffer;
 uint8_t *fbp;
 uint8_t *bfb;
-volatile uint32_t *palette = (uint32_t *)0xC0000200;
+static volatile uint32_t * const palette = (uint32_t *)0xC0000200;
+static unsigned is_hww = 0;
+static unsigned xy_to_fbo(unsigned x, unsigned y){
+	if(is_hww) {
+		return x * 240 + y;
+	} else {
+		return y * 320 + x;
+	}
+}
 
-#define XY_TO_IDX(x, y) ((y) * 120 + (x))
-#define XY_TO_FBO(x, y) ((y) * 320 + (x))
+//#define XY_TO_IDX(x, y) ((y) * 120 + (x))
+//#define XY_TO_FBO(x, y) ((y) * 320 + (x))
 #define MAX_COL ((ls.n_bits == 8) ? 14 : 19)
 #define C_XO ((320-(96*3))/2)
 #define C_YO ((240-(64*3))/2)
 
-#define C_OFFSET XY_TO_FBO(C_XO, C_YO)
+//#define C_OFFSET XY_TO_FBO(C_XO, C_YO)
+
+unsigned c_offset;
 
 typedef uint8_t * byteptr;
 
 //#define FB_OFFSET(x, y) (((y) * 320 + (x)) >> 1)
 //#define printf(...)
+
+
 
 static uint16_t pack_rgb(uint8_t r, uint8_t g, uint8_t b){
 	return b >> 3 | g >> 3 << 5 | r >> 3 << 10;
@@ -39,33 +53,49 @@ static uint16_t pack_rgb(uint8_t r, uint8_t g, uint8_t b){
 static uint16_t pack_rgbp(uint32_t rgb){
 	return pack_rgb(rgb >> 16, (rgb >> 8) & 0xff, rgb & 0xff);
 }
-uint8_t get_lcd_type();
+static uint16_t pack_gry(uint8_t v) {
+	uint8_t z = v & 1;
+	v >>= 1;
+	return v | (v << 5) | (v << 10) | (z << 15);
+}
+__attribute__((naked)) uint8_t get_lcd_type() {
 asm(
-"get_lcd_type:\n\t"
-"swi #0x20000e\n\t"
-"bx lr\n\t"
+"	swi #0x20000e\n"
+"	bx lr\n"
 );
+}
+
+typedef void (*n_set_84_pixel_t)(int x, int y, uint8_t gray, uint32_t fb_a);
+
+void _n_set_84_pixel(int x, int y, uint8_t gray, uint32_t fb_a);
+void _n_set_84_pixel_hww(int x, int y, uint8_t gray, uint32_t fb_a);
+
+n_set_84_pixel_t correct_setpixel;
 
 void m_lcd_init(){
+	
+	is_hww = _lcd_type() == SCR_240x320_565;
 	//asm(" b .");
 	fbp = malloc(320*240 + 8); //SCREEN_BASE_ADDRESS;
 	framebuffer = (((intptr_t)fbp) | 7) + 1;
 	//lcd_ingray();
 	memset(framebuffer, 0xff, 320*240);
 	*IO_LCD_CONTROL &= (unsigned)~0b00001110;
-	*IO_LCD_CONTROL |= (unsigned)0b00000110; // 8 bpp, palette
+	*IO_LCD_CONTROL |= (unsigned) 0b00000110; // 8 bpp, palette
 	
 	bfb = *(volatile byteptr *)0xC0000010;
 	*(volatile byteptr *)0xC0000010 = framebuffer;
 	
+	c_offset = xy_to_fbo(C_XO, C_YO);
+	correct_setpixel = is_hww ? _n_set_84_pixel_hww : _n_set_84_pixel;
 	
-	palette[0] = 0x0000ffff;
+	palette[0] = pack_gry(0xff >> 2);
 	palette[1] = pack_rgbp(0xff0000);
 	//palette[1] = 0xffff;
-	palette[0xff >> 1] = pack_rgbp(0xaaaaaa) << 16; //0b0101011010110101 << 16;//
+	palette[0xff >> 1] = pack_gry(0xaa >> 2) << 16; //0b0101011010110101 << 16;//
 	int y;
 	for(y = 0; y < 64*3; y++){
-		memset(framebuffer + XY_TO_FBO(C_XO, y+C_YO), 0, 96*3);
+		memset(framebuffer + xy_to_fbo(C_XO, y+C_YO), 0, 96*3);
 	}
 }
 
@@ -76,25 +106,22 @@ void lcd_end(){
 	lcd_incolor();
 	free(fbp);
 }
-/*static void n_set_pixel(int x, int y, uint8_t v){
-	uint8_t *base = framebuffer + FB_OFFSET(x, y);
-	if(!(x & 1)) v <<= 4;
-	*base &= ~(x & 1 ? 0x0f : 0xf0);
-	*base |= v;
-}*/
-//uint16_t px_offsets[9] = {0, 1, 2, 320, 321, 322, 640, 641, 642};
 asm(
 "\n"
 ".align 2\n"
 "px_offsets:\n\t"
 	".hword 0, 1, 2, 320, 321, 322, 640, 641, 642\n\t"
+"px_offsets_hww:\n\t"
+	".hword 0, 1, 2, 240, 241, 242, 480, 481, 482\n\t"
 );
 
-void _n_set_84_pixel(int x, int y, uint8_t gray, uint32_t fb_a);
+
+__attribute__((naked)) void _n_set_84_pixel(int x, int y, uint8_t gray, uint32_t fb_a) {
+	(void)x;
+	(void)y;
+	(void)gray;
+	(void)fb_a;
 asm(
-"\n"
-".align 4\n"
-"_n_set_84_pixel:\n"
 "	push {r4, lr}\n"
 "	mov r4, #320\n"
 "	mla r3, r1, r4, r3\n"
@@ -107,74 +134,45 @@ asm(
 "	bne 1b\n"
 "	pop {r4, pc}\n"
 );
-/*asm(
-"\n"
-"_n_set_84_pixel:\n\t"
-	"stmfd sp!, {r4-r8}\n\t"
-	"mov r4, #480\n\t" // 320 * 3 / 2
-	"mla r3, r1, r4, r3\n\t"
-	"mov r4, #3\n\t"
-	"mul r4, r0, r4\n\t"
-	"add r3, r3, r4, asr #1\n\t"
-	"mov r4, r3\n\t"
-	"mov r5, #15\n\t"
-	"mov r6, r2, lsl #4\n\t"
-	"orr r6, r2\n\t"
-	"tst r0, #1\n\t"
-	"addne r3, #1\n\t"
-	"addeq r4, #1\n\t"
-	"lsleq r5, #4\n\t"
-	"lsleq r2, #4\n\t"
-	"mov r7, #3\n" // no \t
-"loop_begin:\n\t"
-	"strb r6, [r3]\n\t"
-	"ldrb r8, [r4]\n\t"
-	"bic r8, r5\n\t"
-	"orr r8, r2\n\t"
-	"strb r8, [r4]\n\t"
-	"add r3, r3, #160\n\t"
-	"add r4, r4, #160\n\t"
-	"subs r7, r7, #1\n\t"
-	"bne loop_begin\n\t"
-	"ldmfd sp!, {r4-r8}\n\t"
-	"bx lr\n\t"
-);*/
+}
+
+__attribute__((naked)) void _n_set_84_pixel_hww(int x, int y, uint8_t gray, uint32_t fb_a) {
+	(void)x;
+	(void)y;
+	(void)gray;
+	(void)fb_a;
+asm(
+"	push {r4, lr}\n"
+"	mov r4, #240\n"
+"	mla r3, r0, r4, r3\n"
+"	add r3, r1\n"
+"	adr r4, px_offsets_hww\n"
+"	mov r0, #18\n"
+"1:	subs r0, #2\n"
+"	ldrh r1, [r4, r0]\n"
+"	strb r2, [r3, r1]\n"
+"	bne 1b\n"
+"	pop {r4, pc}\n"
+);
+}
+
 static void n_set_84_pixel(int x, int y, uint8_t gray){
-	_n_set_84_pixel(x*3, y*3, gray, (uint32_t)framebuffer + C_OFFSET);
-	/*int dy;
-	x *= 3;
-	y *= 3;
-	uint8_t d = gray << 4 | gray;
-	if(x & 1){
-		for(dy = 0; dy < 3; dy++){
-			int o = FB_OFFSET(x, y+dy) + C_OFFSET;
-			framebuffer[o+1] = d;
-			framebuffer[o] &= ~0x0f;
-			framebuffer[o] |= gray;
-		}
-	}else{
-		for(dy = 0; dy < 3; dy++){
-			int o = FB_OFFSET(x, y+dy) + C_OFFSET;
-			framebuffer[o] = d;
-			framebuffer[o+1] &= ~0xf0;
-			framebuffer[o+1] |= gray << 4;
-		}
-	}*/
+	correct_setpixel(x*3, y*3, gray, (uint32_t)framebuffer + c_offset);
 }
 static void set_pixel(int x, int y, uint8_t val){
 	//printf("set_pixel %d %d %d\n", x, y, val);
 	if(y < 64 && x < 96) n_set_84_pixel(x, y, val ? 1 : 0);
-	//int n = XY_TO_IDX(x, y);
 }
 static uint8_t get_pixel(int x, int y){
-	//int n = XY_TO_IDX(x, y);
-	return framebuffer[C_OFFSET + XY_TO_FBO(x*3, y*3)] && 1;//(video_mem[n >> 3] & 1<<(n & 0b111)) ? 1 : 0;
+	return framebuffer[c_offset + xy_to_fbo(x*3, y*3)] && 1;
 }
 
 void set_contrast(uint8_t contrast){
+	//printf("set_contrast %d\n", set_contrast);
 	int black = contrast;
 	int white = 0xff - contrast;
-	palette[0] = pack_rgb(black, black, black) << 16 | pack_rgb(white, white, white);
+	palette[0] = (pack_gry(black) << 16) | pack_gry(white);
+	printf("%d %d %d %04x\n", contrast, black, white, palette[0]);
 	ls.contrast = contrast;
 }
 
