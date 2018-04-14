@@ -50,7 +50,7 @@ void savestate_save(char *romfn){
 	for(i = 0; i < N_PAGES; i++){
 		if(dps[i]){
 			fputc(i, savefile);
-			fwrite(&flash[i * 4000], 0x4000, 1, savefile);
+			fwrite(&flash[i * 0x4000], 0x4000, 1, savefile);
 		}
 	}
 	fwrite(ram, RAM_SIZE, 1, savefile);
