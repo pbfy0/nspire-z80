@@ -34,6 +34,7 @@ void port_set(uint8_t pn, struct z80port *p, uint8_t val);
 //uint8_t *flash;
 struct DrZ80 ZCpu;
 volatile uint8_t flag;
+uint32_t port_debug = 0;
 
 int main(int argc, char **argv){
 	printf("main = %p\n", main);
@@ -111,9 +112,10 @@ int main(int argc, char **argv){
 	uint32_t *mem32 = (uint32_t *)0xe0000000;
 	printf("%08x %08x %08x\n", mem32[0], mem32[1], mem32[2]);
 	//asm volatile("b .\n\t");
+	uint32_t p_pressed = 0;
 	while(1){
 		//printf("asdasd %08x\n", ZCpu.Z80PC);
-		int cyca = DrZ80Run(&ZCpu, cycs);
+		int cyca = /*(ZCpu.Z80IF & Z80_HALT) && (ZCpu.Z80_IRQ == 0) ? 0 : */DrZ80Run(&ZCpu, cycs);
 		int cyce = cycs == cyca ? 100 : cycs - cyca;
 		//printf("%d %08x\n", cycs, *(volatile uint32_t *)(0x900C0004));
 		//printf("%d\n", cyce);
@@ -124,6 +126,12 @@ int main(int argc, char **argv){
 			printf("a	%02x	f	%02x	bc	%04x	de	%04x	hl	%04x\n", ZCpu.Z80A >> 24, ZCpu.Z80F >> 24, ZCpu.Z80BC >> 16, ZCpu.Z80DE >> 16, ZCpu.Z80HL >> 16);
 			printf("sp	%04x	ix	%04x	iy	%04x\n", ZCpu.Z80SP - ZCpu.Z80SP_BASE, ZCpu.Z80IX >> 16, ZCpu.Z80IY >> 16);
 		}
+		uint32_t a = isKeyPressed(KEY_NSPIRE_P);
+		if(a && !p_pressed) {
+			p_pressed = 1;
+			port_debug ^= 1;
+		}
+		if(p_pressed && !a) p_pressed = 0;
 		
 		cycs = timer_after(cyce);
 		if(isKeyPressed(KEY_NSPIRE_ESC)) break;
@@ -163,7 +171,7 @@ void cpu_trace() {
 
 void cpu_init(){
 	memset(&ZCpu, 0, sizeof(ZCpu));
-	ZCpu.z80_rebasePC=cpu_rebasePC;
+	ZCpu.z80_rebasePC= cpu_rebasePC;
 	ZCpu.z80_rebaseSP= cpu_rebaseSP;
 	ZCpu.z80_read8   = cpu_read8;
 	ZCpu.z80_read16  = cpu_read16;
@@ -286,7 +294,7 @@ unsigned char cpu_in(unsigned short pn_){
 	uint8_t pn = (uint8_t)pn_;
 	struct z80port *p = &ports[pn];
 	uint8_t v = port_get(pn, p);
-	//printf("Read %02x from port %02x (%s)\n", v, p->number, p->name);
+	if(port_debug) printf("Read %02x from port %02x (%s)\n", v, p->number, p->name);
 	return v;
 }
 
@@ -297,7 +305,7 @@ void cpu_out(unsigned short pn_, unsigned char val){
 	//asm(" mov r0, r6");
 	//uint16_t zpc = temp - ZCpu.Z80PC_BASE;
 	port_set(pn, p, val);
-	//printf("Wrote %02x to port %02x (%s)\n", val, p->number, p->name);
+	if(port_debug) printf("Wrote %02x to port %02x (%s)\n", val, p->number, p->name);
 	//temp = cpu_rebasePC(zpc);
 	//asm(" mov r6, r0"); // do not try this at home
 }
