@@ -19,7 +19,8 @@ struct lcd_state ls = { 0, 0, 0, 8, AUTO_DOWN, TRUE, 0, 0xff };
 uint8_t *framebuffer;
 uint8_t *fbp;
 uint8_t *bfb;
-static volatile uint32_t * const palette = (uint32_t *)0xC0000200;
+static uint32_t * const palette = (uint32_t *)0xC0000200;
+static uint32_t * lcd_control;
 static unsigned is_hww = 0;
 static unsigned xy_to_fbo(unsigned x, unsigned y){
 	if(is_hww) {
@@ -54,8 +55,8 @@ static uint16_t pack_rgbp(uint32_t rgb){
 	return pack_rgb(rgb >> 16, (rgb >> 8) & 0xff, rgb & 0xff);
 }
 static uint16_t pack_gry(uint8_t v) {
-	uint8_t z = v & 1;
-	v >>= 1;
+	uint8_t z = (v & 4) >> 2;
+	v >>= 3;
 	return v | (v << 5) | (v << 10) | (z << 15);
 }
 __attribute__((naked)) uint8_t get_lcd_type() {
@@ -75,35 +76,40 @@ n_set_84_pixel_t correct_setpixel;
 void m_lcd_init(){
 	
 	is_hww = _lcd_type() == SCR_240x320_565;
-	//asm(" b .");
+	lcd_control = IO_LCD_CONTROL;
+	
 	fbp = malloc(320*240 + 8); //SCREEN_BASE_ADDRESS;
 	framebuffer = (((intptr_t)fbp) | 7) + 1;
 	//lcd_ingray();
 	memset(framebuffer, 0xff, 320*240);
-	*IO_LCD_CONTROL &= (unsigned)~0b00001110;
-	*IO_LCD_CONTROL |= (unsigned) 0b00000110; // 8 bpp, palette
+	int x, y, i = 0;
+	for(y = 0; y < 240; y++) {
+		for(x = 0; x < 320; x++) {
+			if(y > C_YO && y < (240 - C_YO) && x == C_XO) {
+				memset(framebuffer+i, 0, 96*3);
+				i += 96*3;
+				x += 96*3;
+			}
+			framebuffer[i++] = ((x & 1) ^ (y & 1)) + 4;
+		}
+	}
 	
-	bfb = *(volatile byteptr *)0xC0000010;
-	*(volatile byteptr *)0xC0000010 = framebuffer;
+	*lcd_control = (*lcd_control & ~0b1110) | 0b0110; // 8 bpp, palette
+	
+	bfb = REAL_SCREEN_BASE_ADDRESS;
+	REAL_SCREEN_BASE_ADDRESS = framebuffer;
 	
 	c_offset = xy_to_fbo(C_XO, C_YO);
 	correct_setpixel = is_hww ? _n_set_84_pixel_hww : _n_set_84_pixel;
 	
-	palette[0] = pack_gry(0xff >> 2);
+	palette[0] = pack_gry(0xff);
 	palette[1] = pack_rgbp(0xff0000);
-	//palette[1] = 0xffff;
-	palette[0xff >> 1] = pack_gry(0xaa >> 2) << 16; //0b0101011010110101 << 16;//
-	int y;
-	for(y = 0; y < 64*3; y++){
-		memset(framebuffer + xy_to_fbo(C_XO, y+C_YO), 0, 96*3);
-	}
+	palette[2] = 0xffff0000;
 }
 
 void lcd_end(){
-	//IO_LCD_CONTROL &= ~0b00001110;
-	//IO_LCD_CONTROL |= 0b00000100; // 16 bit color
-	*(volatile byteptr *)0xC0000010 = bfb;
-	lcd_incolor();
+	REAL_SCREEN_BASE_ADDRESS = bfb;
+	*lcd_control = (*lcd_control & ~0b1110) | 0b1100; // 8 bpp, palette
 	free(fbp);
 }
 asm(
@@ -169,10 +175,10 @@ static uint8_t get_pixel(int x, int y){
 
 void set_contrast(uint8_t contrast){
 	//printf("set_contrast %d\n", set_contrast);
-	int black = contrast;
-	int white = 0xff - contrast;
+	int black = contrast * 2;
+	int white = 0xff - contrast * 2;
 	palette[0] = (pack_gry(black) << 16) | pack_gry(white);
-	printf("%d %d %d %04x\n", contrast, black, white, palette[0]);
+	printf("%d %d %d %08x\n", contrast, black, white, palette[0]);
 	ls.contrast = contrast;
 }
 
