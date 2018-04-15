@@ -1,6 +1,8 @@
 #include "mmu_mmap.h"
 
 #include <os.h>
+#include <stdio.h>
+#include "util.h"
 #include <syscall-list.h>
 #include "c_syscall.h"
 
@@ -365,16 +367,19 @@ static void update67() {
 	//clear_cache();
 }
 
+static void mmu_port5_update() {
+	if(mmu_mode == 0) {
+		map_page_st(3, banks[2]);
+		//clear_cache();
+	}
+}
+
 void mmu_port5_out(uint8_t val) {
 #ifdef MMU_DEBUG
 	if(!testing) printf("wrote %02x to port 05\n", val);
 #endif
 	banks[2].low = val | 0x80;
-	if(mmu_mode == 0) {
-		map_page_st(3, banks[2]);
-		//map_in(3, ROM_PAGE(val), 0);
-		//clear_cache();
-	}
+	mmu_port5_update();
 }
 
 static void mmu_port67_update(uint8_t port) {
@@ -409,45 +414,6 @@ uint8_t mmu_portEF_in(uint8_t port) {
 	return banks[port - 0xe].hi;
 }
 
-
-#if 0
-void mmu_init() {
-	printf("a\n");
-	mmu_base = get_mmu_addr();
-	printf("%p\n", mmu_base);
-	mem_base = aligned_alloc(0x1000, RAM_SIZE + FLASH_SIZE);
-	//void *bottom = mem_base & ~0xfffff;
-	//void *top = (mem_base + RAM_SIZE + FLASH_SIZE - 0x1000) & ~0xfffff;
-	
-	/*int bottom_idx = bottom >> 20;
-	int top_idx = top >> 20;*/
-	
-	int tbl_size = (RAM_SIZE + FLASH_SIZE) / 0x1000;//top - bottom + 1;
-	int t2_size = tbl_size & 0xff == 0 ? tbl_size : (tbl_size | 0xff) + 1;
-	section_base = aligned_alloc(0x400, 4 * t2_size); // aligned on 1k
-	printf("b\n");
-	int i;
-	for(i = 0; i < tbl_size; i++) {
-		section_base[i] = (intptr_t)(mem_base + i * 0x1000) & ~0xfff | 0b1110; // I think
-	}
-	for(i = tbl_size; i < t2_size; i++) {
-		section_base[i] = 0;
-	}
-	printf("c\n");
-	////clear_cache();
-	//asm volatile("dmb st\n\t");
-	n_sections = t2_size / 256;
-	for(i = 0; i < n_sections; i++) {
-		mmu_base[i + 0xe00] = (intptr_t)(section_base + i * 256) | 0b10001;
-	}
-	//clear_cache();
-	printf("d\n");
-	//asm volatile("dmb\n\t");
-	mem_base[0] = 0x12345678;
-	printf("%08x\n", *(uint32_t *)0xe0000000);
-}
-#endif
-
 void mmu_end() {
 	//int i;
 	mmu_base[0xdff] = 0;
@@ -464,5 +430,17 @@ void mmu_mmap_init(){
 	mem_base = aligned_alloc(0x1000, RAM_SIZE + FLASH_SIZE);
 }
 
-void mmap_save() {}
-void mmap_restore() {}
+void mmap_save(FILE *f) {
+	fputc(mmu_mode, f);
+	FWRITE_VALUE(banks, f);
+	fputc(normal, f);
+}
+void mmap_restore(FILE *f) {
+	mmu_mode = fgetc(f);
+	FREAD_VALUE(&banks, f);
+	mmu_port5_update();
+	mmu_port67_update(0);
+	mmu_port67_update(1);
+	normal = fgetc(f);
+	if(normal) map_in(0, ROM_PAGE(0), 1);
+}

@@ -20,6 +20,7 @@ void savestate_save(char *romfn){
 	memcpy(savefn + rnl - 8, "8sav", 4);
 	//printf("Saving to %s\n", savefn);
 	FILE *savefile = fopen(savefn, "wb");
+	printf("PC=%08x, rel=%08x\n", ZCpu.Z80PC, ZCpu.Z80PC - ZCpu.Z80PC_BASE);
 	ZCpu.Z80PC -= ZCpu.Z80PC_BASE;
 	fwrite(&ZCpu, sizeof(struct DrZ80Regs), 1, savefile);
 	ZCpu.Z80PC += ZCpu.Z80PC_BASE;
@@ -66,7 +67,7 @@ void savestate_save(char *romfn){
 }
 
 void savestate_load(char *savefn, char **romfn_p){
-	//printf("Starting savestate load\n");
+	printf("Starting savestate load\n");
 	FILE *savefile = fopen(savefn, "rb");
 	
 	/*fseek(savefile, 0, SEEK_END);
@@ -87,7 +88,7 @@ void savestate_load(char *savefn, char **romfn_p){
 	memcpy(romfn + sfnl - 8, "8rom", 4);
 	*romfn_p = romfn;
 		
-	//printf("Loading rom from %s\n", romfn);
+	printf("Loading rom from %s\n", romfn);
 	
 	FILE *romfile = fopen(romfn, "rb");
 	fseek(romfile, 0, SEEK_END);
@@ -119,11 +120,11 @@ void savestate_load(char *savefn, char **romfn_p){
 	int_restore(savefile);
 	rtc_restore(savefile);
 	timer_restore(savefile);
+	//printf("Loaded peripherals\n");
 	
 	//printf("zpc %04x\n", zpc);
 	ZCpu.Z80PC = cpu_rebasePC(zpc);
-	
-	//printf("Loaded peripherals\n");
+	//printf("rebased=%08x\n", ZCpu.Z80PC);
 	
 	fclose(savefile);
 }

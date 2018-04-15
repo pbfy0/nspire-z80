@@ -95,8 +95,8 @@ int main(int argc, char **argv){
 	}
 	
 	//asm(" b .");
-	printf("%08x\n", ZCpu.Z80PC_BASE - (unsigned int)flash);
-	printf("%08x\n", ZCpu.Z80PC - (unsigned int)flash);
+	//printf("%08x\n", ZCpu.Z80PC_BASE - (unsigned int)flash);
+	//printf("%08x\n", ZCpu.Z80PC - (unsigned int)flash);
 	//printf("%08x\n", cpu_read16(0));
 	//printf("%p\n", mmap_bank_for_addr(0));
 	/*for(i = 0; i < 0x100; i++){

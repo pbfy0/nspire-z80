@@ -1,6 +1,7 @@
 #ifndef MMU_MMAP_H
 #define MMU_MMAP_H
 #include <stdint.h>
+#include <stdio.h>
 
 void * get_mmu_addr();
 void set_mmu_addr(intptr_t a);
@@ -15,6 +16,9 @@ uint8_t mmu_portEF_in(uint8_t port);
 
 void mmu_init();
 void mmu_end();
+
+void mmap_save(FILE *f);
+void mmap_restore(FILE *f);
 
 extern uint8_t *flash;
 extern uint8_t *ram;
