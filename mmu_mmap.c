@@ -152,6 +152,7 @@ static void map_in(int idx, void *base, bool ro) {
 #ifdef MMU_DEBUG
 	if(!testing) printf("mapping %p -> %p = %p (%p, %02x)\n", 0xe0000000 + (idx * 0x4000), base, b2, (uint8_t *)base - mem_base, ((uint8_t *)base - mem_base) / 0x4000);
 #endif
+// TODO: figure out exactly which clear_cache invocations are necessary
 	clear_cache();
 	//if(b2 - (intptr_t)mem_base > FLASH_SIZE + RAM_SIZE) printf("illegal start of page %04x %p - b=%p!\n", idx * 0x4000, base, mem_base);
 	//if(b2 - (intptr_t)mem_base + 0x4000 > FLASH_SIZE + RAM_SIZE) printf("illegal end of page %04x %p - b=%p!\n", idx * 0x4000, base, mem_base);
@@ -276,22 +277,23 @@ void mmu_test() {
 
 void __attribute__((interrupt("ABORT"), naked)) abort_handler(){
 	asm volatile(
-	"push {r0, r1}\n\t"
-	"mrc p15, 0, r0, c6, c0, 0\n\t"
-	"subs r0,  #0xe0000000\n\t"
-	"movge r1, #0x00220000\n\t"
-	"cmpge r1, r0\n\t"
-	"popge {r0, r1}\n\t"
-	"subges pc, lr, #4\n\t"
-	"adr r0, 1f\n\t"
-	"ldr r1, [r0]\n\t"
-	"add r0, r0, r1\n\t"
-	//"ldr r0, =o_dah\n\t"
-	"ldr r0, [r0]\n\t"
-	"push {r0}\n\t"
-	"pop {r0, r1, pc}\n"
-"1:  .word o_dah-.\n\t"
-	);
+	"push {r0, r1, r2}\n" // r2 is placeholder
+"	mrc p15, 0, r0, c6, c0, 0\n"
+"	subs r0,  #0xe0000000\n"
+"	movge r1, %0\n"
+"	cmpge r1, r0\n"
+"	popge {r0, r1}\n"
+"	subges pc, lr, #4\n"
+"	adr r0, 1f\n"
+"	ldr r1, [r0]\n"
+"	add r0, r0, r1\n"
+//"	ldr r0, =o_dah\n"
+//"	ldr r0, o_dah\n"
+"	ldr r0, [r0]\n"
+"	str r0, [sp, #8]\n"
+"	pop {r0, r1, pc}\n"
+"1:	.word o_dah-.\n\t"
+	: : "i"(FLASH_SIZE+RAM_SIZE) );
 }
 
 void (*o_dah)(void);
@@ -301,7 +303,10 @@ void (*o_dah)(void);
 void mprotect_init() {
 	volatile void **ivt = (volatile void **)0x20;
 	o_dah = ivt[4];
+	//printf("o_dah = %08x\n", o_dah);
 	ivt[4] = abort_handler;
+	
+	//*(uint32_t *)0xf0000000 = 0xffffffff;
 }
 
 void mprotect_end() {
