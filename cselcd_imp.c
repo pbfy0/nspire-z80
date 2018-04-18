@@ -108,7 +108,8 @@ void cselcd_set_pos_y(uint16_t v) {
 
 void cselcd_i_end(){
 	*(volatile byteptr *)0xC0000010 = cse_bfb;
-	lcd_incolor();
+	*IO_LCD_CONTROL &= (unsigned)~0b1110;
+	*IO_LCD_CONTROL |= (unsigned)0b1100;
 	free(cse_framebuffer);
 }
 

@@ -13,13 +13,13 @@ uint8_t writing_data = 0;
 void cselcd_data_set(uint16_t port, uint16_t val);
 uint16_t cselcd_data_get(uint16_t port);
 
-struct cselcd_port cselcd_ports[0xA0] = {0};
+struct cselcd_port cselcd_ports[0xA0];
 
 void cselcd_init() {
 	printf("cselcd_init\n");
 	int i;
 	for(i = 0; i < 0xA0; i++){
-		cselcd_ports[i].pn = i;
+		cselcd_ports[i] = (struct cselcd_port){ .pn = i };
 	}
 	cselcd_i_init();
 	printf("cselcd_init end\n");
