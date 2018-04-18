@@ -1,10 +1,8 @@
 #include "z_interrupt.h"
 #include "timer.h"
 #include <os.h>
-static const t_key KEY_NSPIRE_ON        = KEY_(0x10, 0x200);
 
 extern struct DrZ80 ZCpu;
-extern volatile uint8_t flag;
 struct z_interrupt_state {
 	uint8_t ints_enabled;
 	uint8_t ints_firing;
@@ -38,13 +36,12 @@ void int_ack_out(uint8_t val){
 
 uint8_t int_id_in(){
 	//printf("int_id_in %02x\n", zis.ints_firing);
-	return zis.ints_firing | (isKeyPressed(KEY_NSPIRE_ON) ? 0 : 1<<3);
+	return zis.ints_firing | (isKeyPressed(KEY_NSPIRE_HOME) ? 0 : 1<<3);
 }
 
 void int_fire(uint8_t num){
 	zis.ints_firing |= num;
 	ZCpu.Z80_IRQ = 1;
-	flag = num;
 }
 
 void int_callback(){
