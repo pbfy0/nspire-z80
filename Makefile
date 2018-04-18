@@ -6,9 +6,10 @@ GXX = nspire-g++
 LD  = nspire-ld
 GENZEHN = genzehn
 
-GCCFLAGS = -Wall -W -marm
+GCCFLAGS ?= 
+GCCFLAGS += -Wall -W -marm # -DKEYS_H # -mfloat-abi=softfp -mfpu=vfpv3 -nostdlib
 O1FLAGS = 
-LDFLAGS =
+LDFLAGS = #-Wl,-nostdlib -lndls -lsyscalls
 ZEHNFLAGS = --name "nspire-z80" --uses-lcd-blit false --240x320-support true
 
 ifeq ($(DEBUG),FALSE)
