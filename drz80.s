@@ -1,4 +1,4 @@
-      .DATA
+      .data
 /*
  * DrZ80 Version 1.0
  * Z80 Emulator by Reesy
@@ -1151,6 +1151,7 @@ DrZ80Ver: .long 0x0001
 	.equ Z80_IF2, 1<<1
 	.equ Z80_HALT, 1<<2
 
+	.text
 ;@ --------------------------- Framework --------------------------
     
 DrZ80Run:
@@ -1379,6 +1380,7 @@ DoInterrupt_end:
 
 .endif
 
+	.data
 DAATable: .hword  (0x00<<8)|(1<<ZFlag)|(1<<VFlag)
          .hword  (0x01<<8)                  
          .hword  (0x02<<8)                  
@@ -4051,6 +4053,7 @@ EI_DUMMY_opcodes:
 	.word ei_return,ei_return,ei_return,ei_return,ei_return,ei_return,ei_return,ei_return ;@F
 	.word ei_return,ei_return,ei_return,ei_return,ei_return,ei_return,ei_return,ei_return ;@F
 
+	.text
 ;@NOP
 opcode_0_0:
 ;@LD B,B
