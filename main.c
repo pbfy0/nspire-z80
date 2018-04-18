@@ -11,6 +11,8 @@
 #include "savestate.h"
 #include "rtc.h"
 
+#include "keys.h"
+
 void cpu_init();
 unsigned int cpu_rebasePC(uint32_t x);
 unsigned int cpu_rebaseSP(uint32_t x);
@@ -33,7 +35,6 @@ void port_set(uint8_t pn, struct z80port *p, uint8_t val);
 
 //uint8_t *flash;
 struct DrZ80 ZCpu;
-volatile uint8_t flag;
 uint32_t port_debug = 0;
 
 int main(int argc, char **argv){
@@ -56,22 +57,6 @@ int main(int argc, char **argv){
 	
 	io_init();
 	printf("lcd, cpu, io done\n");
-	/*int q;
-	for(q = 0; q < 8; q++)
-		cpu_out(5, q);
-	for(q = 0; q < 0x88; q++)
-		cpu_out(6, q);
-	for(q = 0; q < 0x88; q++)
-		cpu_out(7, q);
-	mmap_set_mode(1);
-	printf("----\n");
-	for(q = 0; q < 8; q++)
-		cpu_out(5, q);
-	for(q = 0; q < 0x88; q++)
-		cpu_out(6, q);
-	for(q = 0; q < 0x88; q++)
-		cpu_out(7, q);*/
-	
 	
 	int l = strlen(argv[1]);
 	char *sav_romname = NULL;
@@ -94,38 +79,30 @@ int main(int argc, char **argv){
 		clear_cache();
 	}
 	
-	//asm(" b .");
-	//printf("%08x\n", ZCpu.Z80PC_BASE - (unsigned int)flash);
-	//printf("%08x\n", ZCpu.Z80PC - (unsigned int)flash);
-	//printf("%08x\n", cpu_read16(0));
-	//printf("%p\n", mmap_bank_for_addr(0));
-	/*for(i = 0; i < 0x100; i++){
-		printf("%02x", cpu_read8(i));
-	}*/
-	interrupt_init();
 	speedcontrol_init();
-	int cycs = timer_after(0);
+	interrupt_init();
+	int cycles_to_run = timer_after(0);
 	int i = 0;
 	
 	timer_set_enabled(1);
 	timer_freq_set(3);
-	uint32_t *mem32 = (uint32_t *)0xe0000000;
-	printf("%08x %08x %08x\n", mem32[0], mem32[1], mem32[2]);
-	//asm volatile("b .\n\t");
+	// uint32_t *mem32 = (uint32_t *)0xe0000000;
+	// printf("%08x %08x %08x\n", mem32[0], mem32[1], mem32[2]);
+	// asm volatile("b .\n\t");
 	uint32_t p_pressed = 0;
 	while(1){
-		//printf("asdasd %08x\n", ZCpu.Z80PC);
-		int cyca = /*(ZCpu.Z80IF & Z80_HALT) && (ZCpu.Z80_IRQ == 0) ? 0 : */DrZ80Run(&ZCpu, cycs);
-		int cyce = cycs == cyca ? 100 : cycs - cyca;
-		//printf("%d %08x\n", cycs, *(volatile uint32_t *)(0x900C0004));
-		//printf("%d\n", cyce);
-		char *pc = (char *)ZCpu.Z80PC;
-		int pcb = ZCpu.Z80PC - ZCpu.Z80PC_BASE;
+		speedcontrol_before();
+		int cycles_left = /*(ZCpu.Z80IF & Z80_HALT) && (ZCpu.Z80_IRQ == 0) ? 0 : */DrZ80Run(&ZCpu, cycles_to_run);
+		int cycles_elapsed = cycles_to_run == cycles_left ? 100 : cycles_to_run - cycles_left;
+		
 		if(isKeyPressed(KEY_NSPIRE_CAT)) {
-			printf("%d %d %04x %02x%02x%02x%02x\n", i++, cyce, pcb, pc[0], pc[1], pc[2], pc[3]);//, ZCpu.Z80BC);
+			char *pc = (char *)ZCpu.Z80PC;
+			int pcb = ZCpu.Z80PC - ZCpu.Z80PC_BASE;
+			printf("%d %d %04x %02x%02x%02x%02x\n", i++, cycles_elapsed, pcb, pc[0], pc[1], pc[2], pc[3]);//, ZCpu.Z80BC);
 			printf("a	%02x	f	%02x	bc	%04x	de	%04x	hl	%04x\n", ZCpu.Z80A >> 24, ZCpu.Z80F >> 24, ZCpu.Z80BC >> 16, ZCpu.Z80DE >> 16, ZCpu.Z80HL >> 16);
 			printf("sp	%04x	ix	%04x	iy	%04x\n", ZCpu.Z80SP - ZCpu.Z80SP_BASE, ZCpu.Z80IX >> 16, ZCpu.Z80IY >> 16);
 		}
+		
 		uint32_t a = isKeyPressed(KEY_NSPIRE_P);
 		if(a && !p_pressed) {
 			p_pressed = 1;
@@ -133,13 +110,9 @@ int main(int argc, char **argv){
 		}
 		if(p_pressed && !a) p_pressed = 0;
 		
-		cycs = timer_after(cyce);
+		cycles_to_run = timer_after(cycles_elapsed);
 		if(isKeyPressed(KEY_NSPIRE_ESC)) break;
-		if(flag){
-			//printf("fire %02x\n", flag);
-			flag = 0;
-		}
-		speedcontrol_after(cyce);
+		speedcontrol_after(cycles_elapsed);
 	}
 	
 	if(sav_romname){
@@ -228,8 +201,10 @@ unsigned short cpu_read16(uint32_t idx){
 	//uint8_t *p = flash+idx;
 	//if(mmap_z80_to_arm(idx) != flash+idx) printf("read16 0x%x\n", idx);
 	uint8_t *p = 0xe0000000 + (idx & 0xffff);
+#ifdef MMU_DEBUG
 	if(idx & ~0xffff)
 		printf("Invalid read16: %p %04x\n", p, idx);
+#endif
 	uint16_t val = p[0] | p[1] << 8;
 #ifdef MEM16_DEBUG
 	printf("Read %04x at %08x\n", val, p);
@@ -251,8 +226,10 @@ unsigned char cpu_read8(uint32_t idx){
 	//return flash[idx];
 	//if(mmap_z80_to_arm(idx) != flash+idx) printf("read8 0x%x\n", idx);
 	uint8_t *p = (uint8_t *)0xe0000000 + idx;//(idx & 0xffff);
+#ifdef MMU_DEBUG
 	if(idx & ~0xffff)
 		printf("Invalid read8: %p %04x\n", p, idx);
+#endif
 	uint8_t val = *p;
 	//if(idx < 0x4000) printf("read8 0x%04x -> %02x\n", idx, val);
 	return val;
@@ -264,11 +241,13 @@ void cpu_write16(unsigned short val, uint32_t idx){
 	printf("Wrt  %04x at %08x\n", val, p);
 #endif
 	//if(!((p >= flash && p < flash + FLASH_SIZE) || (p >= ram && p < ram + RAM_SIZE)))
+#ifdef MMU_DEBUG
 	if(idx & ~0xffff) {
 		printf("Invalid write16: %p %04x\n", p, idx);
-		cpu_trace();
-		asm("bkpt\n\t");
+		//cpu_trace();
+		//asm("bkpt\n\t");
 	}
+#endif
 	//if(idx < 0x4000) printf("write16 %p 0x%04x 0x%04x\n", p, idx, val);
 	//uint8_t *p = flash + idx;
 	p[0] = val & 0xff;
@@ -278,8 +257,10 @@ void cpu_write16(unsigned short val, uint32_t idx){
 void cpu_write8(unsigned char val, uint32_t idx){
 	uint8_t *p = 0xe0000000 + (idx & 0xffff);
 	//if(!((p >= flash && p < flash + FLASH_SIZE) || (p >= ram && p < ram + RAM_SIZE)))
+#ifdef MMU_DEBUG
 	if(idx & ~0xffff)
 		printf("Invalid write8: %p %04x\n", p, idx);
+#endif
 	//if(idx < 0x4000) printf("write8 0x%04x 0x%02x\n", idx, val);
 	*p = val;
 	//flash[idx] = val;

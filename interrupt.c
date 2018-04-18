@@ -2,6 +2,9 @@
 #include "z_interrupt.h"
 static const t_key KEY_NSPIRE_ON        = KEY_(0x10, 0x200);
 
+static void irq_enable();
+static void irq_disable();
+
 static void __attribute__((interrupt("IRQ"))) irq_handler();
 
 struct keypad {
@@ -38,14 +41,15 @@ void interrupt_init(){
 	uint32_t swi_addr = *(uint32_t *)0x28;
 	patch_base = (uint32_t *)(swi_addr + 0xb0);
 	isr_backup = *ISR_ADDR;
+	*ISR_ADDR = (uint32_t) irq_handler;
+	
 	ei_backup = VIC_REG(0x10);
 	VIC_REG(0x14) = ~0; // disable all interrupts
-	VIC_REG(0x10) |= /*1<<19 | */1<<16; // timer 1, keypad
+	VIC_REG(0x10) |= 1<<18 | 1<<16; // timer 1, keypad
 	kp_bkp.int_mask = keypad->int_mask;
 	kp_bkp.tp_int_mask = keypad->tp_int_mask;
 	keypad->int_mask = 1<<1;
 	keypad->tp_int_mask = 0;
-	*ISR_ADDR = (uint32_t) irq_handler;
 	patch_ndless_swi();
 	uint8_t i = is_classic;
 	(void)i;
@@ -63,32 +67,35 @@ void interrupt_end(){
 }
 
 void __attribute__((interrupt("IRQ"))) irq_handler(){
-	//if(keypad->int_stat){
-		//int x = KEY_REG(0x08);
-		//x ^= x;
-		//KEY_REG(0x08) = 0;
-		//KEY_REG(0x08) = 1<<1;
-		//flag = keypad->int_stat;
+	uint32_t int_status = VIC_REG(0x00);
+
+	if(int_status & 1<<16) {
 		keypad->int_stat = 1<<1;
 		if(isKeyPressed(KEY_NSPIRE_ON)){
 			int_fire(INT_ON);
 		}
-	//}
+	}
+	if(int_status & 1<<18) {
+		speedcontrol_int();
+	}
+
 }
 
-void irq_enable(){
+static void irq_enable(){
+	unsigned dummy;
 	__asm__ volatile(
 		" mrs r0, cpsr\n"
 		" bic r0, r0, #0x80\n"
-		" msr cpsr_c, r0\n" ::: "r0"
+		" msr cpsr_c, r0\n" : "+r"(dummy)
 	);
 }
 
-void irq_disable(){
+static void irq_disable(){
+	unsigned dummy;
 	__asm__ volatile(
-		" mrs r0, cpsr\n"
-		" orr r0, r0, #0x80\n"
-		" msr cpsr_c, r0\n" ::: "r0"
+		" mrs %0, cpsr\n"
+		" orr %0, %0, #0x80\n"
+		" msr cpsr_c, %0\n" : "+r"(dummy)
 	);
 }
 

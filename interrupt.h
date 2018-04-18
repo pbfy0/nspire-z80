@@ -9,8 +9,6 @@
 
 void interrupt_init();
 void interrupt_end();
-void irq_enable();
 
-void irq_disable();
 void patch_ndless_swi();
 void unpatch_ndless_swi();
