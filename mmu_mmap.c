@@ -5,6 +5,7 @@
 #include "util.h"
 #include <syscall-list.h>
 #include "c_syscall.h"
+#include "aligned_alloc.h"
 
 #ifdef USE_CSE
 #define FLASH_SIZE 0x400000
@@ -74,45 +75,18 @@ __attribute__((naked)) void set_cr3(uint32_t v) {
 	);
 }
 
-/*__attribute__((naked)) void *_malloc(size_t size) {
-	asm(
-	"swi #5\n\t"
-	"bx lr\n\t"
-	);
-}
-__attribute__((naked)) void _free(void *ptr) {
-	asm(
-	"swi #6\n\t"
-	"bx lr\n\t"
-	);
-}*/
-
 #include "_syscalls.h"
-
-void *aligned_alloc(size_t alignment, size_t size) { // alignment must be a power of two and this is a little broken
-	void *b = _malloc(size + alignment);
-	void *c = (void *)(((intptr_t)b | (alignment - 1)) + 1);
-	uint32_t *m = (uint32_t *)c;
-	m[-1] = (c - b);
-	return c;
-}
-void aligned_free(void *ptr) {
-	uint32_t *m = (uint32_t *)ptr;
-	void *rm = ptr - m[-1];
-	_free(rm);
-}
-
-/*struct fl_descriptor {
-	struct {
-		
-	} 
-}*/
 
 uint8_t *mem_base;
 uint32_t *section_base;
 uint32_t *section_base_l;
+
+aligned_ptr mem_base_al;
+aligned_ptr section_base_al;
+aligned_ptr section_base_l_al;
+
 int n_sections;
-uint32_t *mmu_base; 
+uint32_t *mmu_base;
 unsigned normal = 0;
 static unsigned mmu_mode = 0;
 unsigned testing = 0;
@@ -154,6 +128,7 @@ static void map_in(int idx, void *base, bool ro) {
 #endif
 // TODO: figure out exactly which clear_cache invocations are necessary
 	clear_cache();
+	ro = 0;
 	//if(b2 - (intptr_t)mem_base > FLASH_SIZE + RAM_SIZE) printf("illegal start of page %04x %p - b=%p!\n", idx * 0x4000, base, mem_base);
 	//if(b2 - (intptr_t)mem_base + 0x4000 > FLASH_SIZE + RAM_SIZE) printf("illegal end of page %04x %p - b=%p!\n", idx * 0x4000, base, mem_base);
 	for(i = 0; i < 4; i++) {
@@ -317,10 +292,14 @@ void mprotect_end() {
 void mmu_init() {
 	mmu_base = get_mmu_addr();
 	printf("mmu_base %p\n", mmu_base);
-	mem_base = aligned_alloc(0x1000, RAM_SIZE + FLASH_SIZE);
+	mem_base_al = x_aligned_alloc(0x1000, RAM_SIZE + FLASH_SIZE);
+	mem_base = mem_base_al.ptr;
 	int t2_size = 0x100;
-	section_base = aligned_alloc(0x400, 4 * t2_size);
-	section_base_l = aligned_alloc(0x400, 4 * t2_size);
+	section_base_al = x_aligned_alloc(0x400, 4 * t2_size);
+	section_base_l_al = x_aligned_alloc(0x400, 4 * t2_size);
+	
+	section_base = section_base_al.ptr;
+	section_base_l = section_base_l_al.ptr;
 	int i;
 	for(i = 0; i < t2_size; i++) {
 		section_base[i] = 0;
@@ -427,12 +406,8 @@ void mmu_end() {
 	set_cr3(get_cr3() & ~(1 << 2));
 	set_cr1(get_cr1() & ~(1<<9)); // disable ROM protection
 	mprotect_end();
-	aligned_free(section_base);
-	aligned_free(mem_base);
-}
-
-void mmu_mmap_init(){
-	mem_base = aligned_alloc(0x1000, RAM_SIZE + FLASH_SIZE);
+	x_aligned_free(section_base_al);
+	x_aligned_free(mem_base_al);
 }
 
 void mmap_save(FILE *f) {
@@ -440,6 +415,7 @@ void mmap_save(FILE *f) {
 	FWRITE_VALUE(banks, f);
 	fputc(normal, f);
 }
+
 void mmap_restore(FILE *f) {
 	mmu_mode = fgetc(f);
 	FREAD_VALUE(&banks, f);

@@ -2,6 +2,7 @@
 #include "lcd.h"
 #include "util.h"
 #include "_syscalls.h"
+#include "aligned_alloc.h"
 
 struct lcd_state {
 	int cur_row;
@@ -14,11 +15,37 @@ struct lcd_state {
 	uint8_t contrast;
 };
 
+static const unsigned char power_btn[20][3] = {
+	{0x00,0x60,0x00},
+	{0x00,0x60,0x00},
+	{0x00,0x60,0x00},
+	{0x06,0x66,0x00},
+	{0x0e,0x67,0x00},
+	{0x1c,0x63,0x80},
+	{0x38,0x61,0xc0},
+	{0x30,0x60,0xc0},
+	{0x60,0x00,0x60},
+	{0x60,0x00,0x60},
+	{0x60,0x00,0x60},
+	{0x60,0x00,0x60},
+	{0x60,0x00,0x60},
+	{0x60,0x00,0x60},
+	{0x30,0x00,0xc0},
+	{0x38,0x01,0xc0},
+	{0x1c,0x03,0x80},
+	{0x0e,0x07,0x00},
+	{0x07,0xfe,0x00},
+	{0x01,0xf8,0x00}
+};
+
 struct lcd_state ls = { 0, 0, 0, 8, AUTO_DOWN, TRUE, 0, 0xff };
 //uint8_t video_mem[120*64/8];
-uint8_t *framebuffer;
-uint8_t *fbp;
-uint8_t *bfb;
+
+void *os_framebuffer;
+uint8_t *front_buffer;
+uint8_t *back_buffer;
+aligned_ptr framebuffer_a;
+aligned_ptr framebuffer_b;
 static uint32_t * const palette = (uint32_t *)0xC0000200;
 static uint32_t * lcd_control;
 static unsigned is_hww = 0;
@@ -46,7 +73,7 @@ typedef uint8_t * byteptr;
 //#define printf(...)
 
 
-
+static void swap_buffers();
 static uint16_t pack_rgb(uint8_t r, uint8_t g, uint8_t b){
 	return b >> 3 | g >> 3 << 5 | r >> 3 << 10;
 }
@@ -73,31 +100,62 @@ void _n_set_84_pixel_hww(int x, int y, uint8_t gray, uint32_t fb_a);
 
 n_set_84_pixel_t correct_setpixel;
 
-void m_lcd_init(){
-	
-	is_hww = _lcd_type() == SCR_240x320_565;
-	lcd_control = IO_LCD_CONTROL;
-	
-	fbp = malloc(320*240 + 8); //SCREEN_BASE_ADDRESS;
-	framebuffer = (((intptr_t)fbp) | 7) + 1;
-	//lcd_ingray();
-	memset(framebuffer, 0xff, 320*240);
+struct pixel_write {
+	uint8_t x;
+	uint8_t y : 7;
+	uint8_t v : 1;
+};
+
+struct pixel_write write_buffer[1024];
+unsigned write_idx = 0;
+unsigned wr_overflow = 0;
+
+static void fb_setup(uint8_t *buf) {
 	int x, y, i = 0;
 	for(y = 0; y < 240; y++) {
-		for(x = 0; x < 320; x++) {
+		for(x = 0; x < 320; x++) { 
 			if(y > C_YO && y < (240 - C_YO) && x == C_XO) {
-				memset(framebuffer+i, 0, 96*3);
+				memset(buf+i, 0, 96*3);
 				i += 96*3;
 				x += 96*3;
 			}
-			framebuffer[i++] = ((x & 1) ^ (y & 1)) + 4;
+			buf[i++] = ((x & 1) ^ (y & 1)) + 4 +
+				(
+					(y >= 2 && y < 22 && x >= C_XO && x < (C_XO+20) &&
+						(power_btn[y-2][(x-C_XO) >> 3] & 1<<(7-((x-C_XO)&7)))) ? 2 : 0
+				);
 		}
 	}
+}
+
+static uint32_t b_lcd_control;
+static uint32_t b_int;
+
+void m_lcd_init(){
+	is_hww = nl_ndless_rev() >= 2004 && _lcd_type() == SCR_240x320_565;
+	lcd_control = IO_LCD_CONTROL;
 	
-	*lcd_control = (*lcd_control & ~0b1110) | 0b0110; // 8 bpp, palette
 	
-	bfb = REAL_SCREEN_BASE_ADDRESS;
-	REAL_SCREEN_BASE_ADDRESS = framebuffer;
+	framebuffer_a = x_aligned_alloc(8, 320*240);
+	framebuffer_b = x_aligned_alloc(8, 320*240);
+	front_buffer = framebuffer_a.ptr;
+	back_buffer = framebuffer_b.ptr;
+	
+	fb_setup(front_buffer);
+	fb_setup(back_buffer);
+	
+	front_buffer[0] = front_buffer[1] = front_buffer[320] = front_buffer[321] = 2;
+	back_buffer[318] = back_buffer[319] = back_buffer[320+318] = back_buffer[320+319] = 2;
+	//lcd_ingray();
+	//memset(framebuffer, 0xff, 320*240);
+	
+	b_lcd_control = *lcd_control;
+	*lcd_control = (*lcd_control & ~0b1110 & ~(0b11 << 12)) | 0b0110 | (0b00 << 12); // 8 bpp, palette. Interrupt on VSync
+	b_int = *(uint32_t *)0xc000001c;
+	*(uint32_t *)0xc000001c = 1<<3; // v compare interrupt
+	
+	os_framebuffer = REAL_SCREEN_BASE_ADDRESS;
+	REAL_SCREEN_BASE_ADDRESS = front_buffer;
 	
 	c_offset = xy_to_fbo(C_XO, C_YO);
 	correct_setpixel = is_hww ? _n_set_84_pixel_hww : _n_set_84_pixel;
@@ -105,12 +163,15 @@ void m_lcd_init(){
 	palette[0] = pack_gry(0xff);
 	palette[1] = pack_rgbp(0xff0000);
 	palette[2] = 0xffff0000;
+	palette[3] = palette[2];
 }
 
 void lcd_end(){
-	REAL_SCREEN_BASE_ADDRESS = bfb;
-	*lcd_control = (*lcd_control & ~0b1110) | 0b1100; // 8 bpp, palette
-	free(fbp);
+	*(uint32_t *)0xc000001c = b_int;
+	REAL_SCREEN_BASE_ADDRESS = os_framebuffer;
+	*lcd_control = b_lcd_control;
+	x_aligned_free(framebuffer_a);
+	x_aligned_free(framebuffer_b);
 }
 asm(
 "\n"
@@ -162,23 +223,58 @@ asm(
 );
 }
 
-static void n_set_84_pixel(int x, int y, uint8_t gray){
-	correct_setpixel(x*3, y*3, gray, (uint32_t)framebuffer + c_offset);
+static void n_set_84_pixel(int x, int y, uint8_t gray, uint8_t *buf){
+	correct_setpixel(x*3, y*3, gray, (uint32_t)buf + c_offset);
 }
-static void set_pixel(int x, int y, uint8_t val){
-	//printf("set_pixel %d %d %d\n", x, y, val);
-	if(y < 64 && x < 96) n_set_84_pixel(x, y, val ? 1 : 0);
-}
+
 static uint8_t get_pixel(int x, int y){
-	return framebuffer[c_offset + xy_to_fbo(x*3, y*3)] && 1;
+	return back_buffer[c_offset + xy_to_fbo(x*3, y*3)] && 1;
 }
+
+static void set_pixel(int x, int y, uint8_t val, uint8_t *buf){
+	//printf("set_pixel %d %d %d\n", x, y, val);
+	unsigned vv = val ? 1 : 0;
+	if(get_pixel(x, y) == vv) return;
+	if(y < 64 && x < 96) {
+		n_set_84_pixel(x, y, vv, buf);
+		if(write_idx == sizeof(write_buffer) / sizeof(write_buffer[0])) {
+			wr_overflow = 1;
+			return;
+		}
+		write_buffer[write_idx++] = (struct pixel_write){ .x = x, .y = y, .v = vv };
+	}
+}
+
+void lcd_int() {
+	*(uint32_t *)0xc0000028 = 1<<3; // acknowledge interrupt;
+	swap_buffers();
+}
+
+static void swap_buffers() {
+	uint8_t *a = back_buffer;
+	back_buffer = front_buffer;
+	front_buffer = a;
+	REAL_SCREEN_BASE_ADDRESS = front_buffer;
+	if(wr_overflow) {
+		memcpy(back_buffer, front_buffer, 320*240);
+		wr_overflow = 0;
+	} else {
+		int i;
+		for(i = 0; i < write_idx; i++) {
+			struct pixel_write w = write_buffer[i];
+			n_set_84_pixel(w.x, w.y, w.v, back_buffer);
+		}
+	}
+	write_idx = 0;
+}
+
 
 void set_contrast(uint8_t contrast){
 	//printf("set_contrast %d\n", set_contrast);
 	int black = contrast * 2;
 	int white = 0xff - contrast * 2;
 	palette[0] = (pack_gry(black) << 16) | pack_gry(white);
-	printf("%d %d %d %08x\n", contrast, black, white, palette[0]);
+	//printf("%d %d %d %08x\n", contrast, black, white, palette[0]);
 	ls.contrast = contrast;
 }
 
@@ -209,10 +305,14 @@ void lcd_cmd(uint8_t cmd){
 		break;
 		case LCD_ENABLE:
 			ls.enabled = TRUE;
+			palette[3] = palette[2];
+			//set_contrast(ls.contrast);
 			//puts("ls.enabled");
 		break;
 		case LCD_DISABLE:
 			ls.enabled = FALSE;
+			//palette[3] = pack
+			palette[3] = pack_rgbp(0x7f0000) * 0x10001;
 			//puts("disabled");
 		break;
 		case AUTO_UP:
@@ -253,13 +353,33 @@ void lcd_auto_move(){
 	}
 
 }
+static void irq_enable(){
+	unsigned dummy;
+	__asm__ volatile(
+		" mrs r0, cpsr\n"
+		" bic r0, r0, #0x80\n"
+		" msr cpsr_c, r0\n" : "+r"(dummy)
+	);
+}
+
+static void irq_disable(){
+	unsigned dummy;
+	__asm__ volatile(
+		" mrs %0, cpsr\n"
+		" orr %0, %0, #0x80\n"
+		" msr cpsr_c, %0\n" : "+r"(dummy)
+	);
+}
+
 void lcd_data(uint8_t data){
 	int i;
 	int x = ls.cur_col * ls.n_bits;
 	int y = ls.cur_row;
+	irq_disable();
 	for(i = 0; i < ls.n_bits; i++){
-		set_pixel(x + i, y & 0x3f, data & (1<<(ls.n_bits-1-i)));
+		set_pixel(x + i, y & 0x3f, data & (1<<(ls.n_bits-1-i)), back_buffer);
 	}
+	irq_enable();
 	lcd_auto_move();
 	/*if(data && !isKeyPressed(KEY_84_ALPHA)){
 		while(!isKeyPressed(KEY_84_2ND));
