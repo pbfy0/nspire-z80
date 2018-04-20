@@ -161,7 +161,7 @@ void m_lcd_init(){
 	correct_setpixel = is_hww ? _n_set_84_pixel_hww : _n_set_84_pixel;
 	
 	palette[0] = pack_gry(0xff);
-	palette[1] = pack_rgbp(0xff0000);
+	palette[1] = pack_rgbp(0xff0000) * 0x10001;
 	palette[2] = 0xffff0000;
 	palette[3] = palette[2];
 }

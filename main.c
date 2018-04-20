@@ -10,6 +10,9 @@
 #include "speedcontrol.h"
 #include "savestate.h"
 #include "rtc.h"
+#include <stdarg.h>
+#include <stddef.h>
+#include "navnet-io.h"
 
 #include "keys.h"
 
@@ -28,7 +31,23 @@ void cpu_irq_callback();
 uint8_t port_get(uint8_t pn, struct z80port *p);
 void port_set(uint8_t pn, struct z80port *p, uint8_t val);
 
+nn_stream g_stream;
+size_t __wrap_printf(const char *format, ...) {
+	va_list args;
+	va_start(args, format);
+	size_t z;
+	if(g_stream == NULL) {
+		z = vprintf(format, args);
+	} else {
+		z = navnet_io_vprintf(g_stream, format, args);
+	}
+	va_end(args);
+	return z;
+}
 
+size_t __wrap_puts(const char *str) {
+	return printf("%s\n", str);
+}
 
 //#define printf(...)
 
@@ -38,7 +57,10 @@ struct DrZ80 ZCpu;
 uint32_t port_debug = 0;
 
 int main(int argc, char **argv){
+	navnet_io_early();
+	g_stream = navnet_io_init();
 	printf("main = %p\n", main);
+	
 	if(argc == 1){
 		cfg_register_fileext("8rom", "nspire-z80");
 		cfg_register_fileext("8sav", "nspire-z80");
@@ -75,12 +97,16 @@ int main(int argc, char **argv){
 		//flash = calloc(0x20000, 1);
 		printf("%08x\n", flash);
 		fread(flash, sizeof(char), romsize, romfile);
+		puts("crazy slow fread done");
 		fclose(romfile);
 		clear_cache();
 	}
-	
+	puts("a");
 	speedcontrol_init();
+	puts("b");
 	interrupt_init();
+	puts("c");
+	memset(REAL_SCREEN_BASE_ADDRESS, 2, 100);
 	int cycles_to_run = timer_after(0);
 	int i = 0;
 	
@@ -92,9 +118,10 @@ int main(int argc, char **argv){
 	uint32_t p_pressed = 0;
 	while(1){
 		speedcontrol_before();
+		//puts("loop a");
 		int cycles_left = /*(ZCpu.Z80IF & Z80_HALT) && (ZCpu.Z80_IRQ == 0) ? 0 : */DrZ80Run(&ZCpu, cycles_to_run);
 		int cycles_elapsed = cycles_to_run == cycles_left ? 100 : cycles_to_run - cycles_left;
-		
+		//puts("loop b");
 		if(isKeyPressed(KEY_NSPIRE_CAT)) {
 			char *pc = (char *)ZCpu.Z80PC;
 			int pcb = ZCpu.Z80PC - ZCpu.Z80PC_BASE;
@@ -102,6 +129,7 @@ int main(int argc, char **argv){
 			printf("a	%02x	f	%02x	bc	%04x	de	%04x	hl	%04x\n", ZCpu.Z80A >> 24, ZCpu.Z80F >> 24, ZCpu.Z80BC >> 16, ZCpu.Z80DE >> 16, ZCpu.Z80HL >> 16);
 			printf("sp	%04x	ix	%04x	iy	%04x\n", ZCpu.Z80SP - ZCpu.Z80SP_BASE, ZCpu.Z80IX >> 16, ZCpu.Z80IY >> 16);
 		}
+		//puts("loop c");
 		
 		uint32_t a = isKeyPressed(KEY_NSPIRE_P);
 		if(a && !p_pressed) {
@@ -114,23 +142,29 @@ int main(int argc, char **argv){
 		if(isKeyPressed(KEY_NSPIRE_ESC)) break;
 		speedcontrol_after(cycles_elapsed);
 	}
+	puts("E1");
+	interrupt_end();
+	puts("E2");
 	
 	if(sav_romname){
-		savestate_save(sav_romname);
+		//savestate_save(sav_romname);
 		free(sav_romname);
 	}else{
-		savestate_save(argv[1]);
+		//savestate_save(argv[1]);
 		//refresh_osscr();
 	}
-	
+	puts("E3");
 #ifdef USE_CSE
 	cselcd_end();
 #else
 	lcd_end();
 #endif
-	interrupt_end();
+	puts("E4");
 	speedcontrol_end();
+	puts("E5");
 	mmu_end();
+	puts("E6");
+	navnet_io_end(g_stream);
 	
 	return 0;
 }

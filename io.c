@@ -87,6 +87,7 @@ void io_init(){
 	
 	ports[0x10].name = "lcd command";
 #ifndef USE_CSE
+	//ports[0x10].const_val = 0;
 	ports[0x10].in.r = lcd_cmd_read;
 	ports[0x10].out.r = lcd_cmd;
 #else
@@ -97,6 +98,7 @@ void io_init(){
 	
 	ports[0x11].name = "lcd data";
 #ifndef USE_CSE
+	//ports[0x11].const_val = 0;
 	ports[0x11].in.r = lcd_data_read;
 	ports[0x11].out.r = lcd_data;
 #else

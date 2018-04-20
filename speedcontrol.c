@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-#define TICKS 0xffffffff
+#define TICKS 0xffff
 
 struct timer {
 	uint32_t load;
@@ -44,9 +44,9 @@ void speedcontrol_end() {
 }
 
 void speedcontrol_before() {
-	timer1->control = 0b00000010;
+	timer1->control = 0b00000000;
 	timer1->load = TICKS;
-	timer1->control = 0b10000010;
+	timer1->control = 0b10000000;
 }
 
 void speedcontrol_after(int cycs_elapsed) {
@@ -57,20 +57,27 @@ void speedcontrol_after(int cycs_elapsed) {
 	int new_cycs = z80_32k_cycs - elapsed;
 	
 	if(new_cycs > 0){
+		printf("elapsed=%d\n", elapsed);
+		printf("32k=%d\n", z80_32k_cycs);
+		printf("nc=%d\n", new_cycs);
 		timer1->control = 0b00100001;
 		timer1->load = new_cycs;
 		timer1->control = 0b10100001;
+		puts("bb");
 		while(!timer_flag) {
 			asm volatile("mcr p15, 0, %0, c7, c0, 4\n\t" : : "r"(0)); // WFI
 		}
+		puts("cc");
 		timer1->control = 0;
 		timer_flag = 0;
+		puts("dd");
 	} else {
 		timer1->control = 0;
 	}
 }
 
 void speedcontrol_int() {
+	//puts("speedcontrol_int");
 	timer1->intclr = 0;
 	//timer1->control = 0;
 	//*(uint32_t *)0x900A0018 = 0b111111;

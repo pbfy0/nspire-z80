@@ -1,6 +1,6 @@
+#include <os.h>
 #include "cselcd_imp.h"
 #include "cselcd.h"
-#include <os.h>
 
 uint8_t *cse_framebuffer;
 uint8_t *cse_bfb;

@@ -7,9 +7,9 @@ LD  = nspire-ld
 GENZEHN = genzehn
 
 GCCFLAGS ?= 
-GCCFLAGS += -Wall -W -marm # -DKEYS_H # -mfloat-abi=softfp -mfpu=vfpv3 -nostdlib
+GCCFLAGS += -Wall -W -marm # -include _nn_insert.h# -DKEYS_H # -mfloat-abi=softfp -mfpu=vfpv3 -nostdlib
 O1FLAGS = 
-LDFLAGS = #-Wl,-nostdlib -lndls -lsyscalls
+LDFLAGS = -Wl,-wrap,printf -Wl,-wrap,puts #-Wl,--nspireio # -Wl,-wrap,printf -Wl,-wrap,puts#-Wl,-nostdlib -lndls -lsyscalls
 ZEHNFLAGS = --name "nspire-z80" --uses-lcd-blit false --240x320-support true
 
 ifeq ($(DEBUG),FALSE)
