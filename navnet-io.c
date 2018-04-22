@@ -65,13 +65,16 @@ void navnet_io_end(nn_stream st) {
 	TI_NN_Disconnect(st);
 }
 
+#include "_syscalls.h"
 void navnet_io_send(nn_stream st, char *buf, size_t len) {
+	//__real_puts("nn_send enter");
+	//putc('a', stdout);
 	unsigned io = irq_status();
 	if(!io) irq_disable();
 	void *c_i = *isr_addr;
 	uint32_t cie = VIC_REG(0x10);	
 	VIC_REG(0x14) = ~0;
-	VIC_REG(0x10) = os_ints_enabled;
+	VIC_REG(0x10) = os_ints_enabled & 1<<8;
 	*isr_addr = real_isr;
 
 	TI_NN_Write(st, buf, len);
@@ -80,6 +83,8 @@ void navnet_io_send(nn_stream st, char *buf, size_t len) {
 	VIC_REG(0x14) = ~0;
 	VIC_REG(0x10) = cie;
 	if(!io) irq_enable();
+	//putc('b', stdout);
+	//__real_puts("nn_send exit");
 }
 
 size_t navnet_io_vprintf(nn_stream st, const char *format, va_list args) {
