@@ -24,6 +24,7 @@ endif
 
 ifeq ($(NAVNETIO),TRUE)
 	LDFLAGS += -Wl,-wrap,printf -Wl,-wrap,puts
+	GCCFLAGS += -DUSE_NAVNETIO
 endif
 
 ifeq ($(DEBUG),FALSE)
@@ -65,6 +66,8 @@ $(EXE).tns: $(EXE).elf
 	$(GENZEHN) --input $^ --output $@.zehn $(ZEHNFLAGS)
 	make-prg $@.zehn $@
 	rm $@.zehn
+
+.PHONY: deploy
 
 deploy: $(EXE).tns
 	NavNet_launcher.exe NavNet_upload.exe "$(shell readlink -f $(EXE).tns | sed -e 's|/mnt/\(.\)/|\U\1:\\|' -e 's|/|\\|g')" "$(DEPLOY_DIR)$(EXE).tns"

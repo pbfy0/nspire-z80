@@ -31,7 +31,10 @@ void cpu_irq_callback();
 uint8_t port_get(uint8_t pn, struct z80port *p);
 void port_set(uint8_t pn, struct z80port *p, uint8_t val);
 
+#ifdef USE_NAVNETIO
+
 nn_stream g_stream;
+
 size_t __wrap_printf(const char *format, ...) {
 	va_list args;
 	va_start(args, format);
@@ -49,7 +52,7 @@ size_t __wrap_printf(const char *format, ...) {
 size_t __wrap_puts(const char *str) {
 	return printf("%s\n", str);
 }
-
+#endif
 //#define printf(...)
 
 
@@ -59,8 +62,10 @@ uint32_t port_debug = 0;
 //volatile extern unsigned dah_happened;
 
 int main(int argc, char **argv){
+#ifdef USE_NAVNETIO
 	navnet_io_early();
 	g_stream = navnet_io_init();
+#endif
 	printf("main = %p\n", main);
 	
 	if(argc == 1){
@@ -154,10 +159,10 @@ int main(int argc, char **argv){
 	puts("E2");
 	
 	if(sav_romname){
-		//savestate_save(sav_romname);
+		savestate_save(sav_romname);
 		free(sav_romname);
 	}else{
-		//savestate_save(argv[1]);
+		savestate_save(argv[1]);
 		//refresh_osscr();
 	}
 	puts("E3");
@@ -173,7 +178,9 @@ int main(int argc, char **argv){
 	puts("E5");
 	mmu_end();
 	puts("E6");
+#ifdef USE_NAVNETIO
 	navnet_io_end(g_stream);
+#endif
 	
 	return 0;
 }
