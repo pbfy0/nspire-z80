@@ -104,17 +104,13 @@ int main(int argc, char **argv){
 		fseek(romfile, 0, 0);
 		//printf("%d\n", romsize);
 		//flash = calloc(0x20000, 1);
-		printf("%08x\n", flash);
+		printf("flash=%08x\n", flash);
 		fread(flash, sizeof(char), romsize, romfile);
-		puts("crazy slow fread done");
 		fclose(romfile);
 		clear_cache();
 	}
-	puts("a");
 	speedcontrol_init();
-	puts("b");
 	interrupt_init();
-	puts("c");
 	//memset(REAL_SCREEN_BASE_ADDRESS, 2, 100);
 	int cycles_to_run = timer_after(0);
 	int i = 0;
@@ -154,9 +150,7 @@ int main(int argc, char **argv){
 		if(isKeyPressed(KEY_NSPIRE_ESC)) break;
 		speedcontrol_after(cycles_elapsed);
 	}
-	puts("E1");
 	interrupt_end();
-	puts("E2");
 	
 	if(sav_romname){
 		savestate_save(sav_romname);
@@ -165,7 +159,6 @@ int main(int argc, char **argv){
 		savestate_save(argv[1]);
 		refresh_osscr();
 	}
-	puts("E3");
 #ifndef NO_LCD
 #ifdef USE_CSE
 	cselcd_end();
@@ -173,11 +166,8 @@ int main(int argc, char **argv){
 	lcd_end();
 #endif
 #endif
-	puts("E4");
 	speedcontrol_end();
-	puts("E5");
 	mmu_end();
-	puts("E6");
 #ifdef USE_NAVNETIO
 	navnet_io_end(g_stream);
 #endif

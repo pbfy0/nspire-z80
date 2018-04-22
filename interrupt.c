@@ -38,12 +38,10 @@ extern volatile uint8_t flag;
 
 
 void interrupt_init(){
-	puts("A");
 	uint32_t swi_addr = *(uint32_t *)0x28;
 	patch_base = (uint32_t *)(swi_addr + 0xb0);
 	isr_backup = *ISR_ADDR;
 	*ISR_ADDR = (uint32_t) irq_handler;
-	puts("B");
 	
 	ei_backup = VIC_REG(0x10);
 	VIC_REG(0x14) = ~0; // disable all interrupts
@@ -52,20 +50,15 @@ void interrupt_init(){
 		1<<21 | // lcd
 #endif
 		1<<18 | 1<<16; // timer 1, keypad
-	puts("C");
 	kp_bkp.int_mask = keypad->int_mask;
 	kp_bkp.tp_int_mask = keypad->tp_int_mask;
 	keypad->int_mask = 1<<1;
 	keypad->tp_int_mask = 0;
-	puts("D");
 	patch_ndless_swi();
-	puts("E");
 	uint8_t i = is_classic;
 	(void)i;
 	is_touchpad;
-	puts("F");
 	irq_enable();
-	puts("G");
 }
 void interrupt_end(){
 	irq_disable();
