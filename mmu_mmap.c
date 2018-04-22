@@ -6,6 +6,7 @@
 #include <syscall-list.h>
 #include "c_syscall.h"
 #include "aligned_alloc.h"
+#include "lcd.h"
 
 #ifdef USE_CSE
 #define FLASH_SIZE 0x400000
@@ -197,10 +198,10 @@ static void map_in(int idx, void *base, bool ro) {
 void map_framebuffer(void *buf) {
 	int i, j;
 	intptr_t bb = buf;
-	for(i = 0, j=0; i < 320*240*2; i += 0x1000, j++) {
+	for(i = 0, j=0; i < FB_SIZE; i += 0x1000, j++) {
 		m_section_base[0x50+j] = bb + i | 0b1010 | 0xff0;
 	}
-	for(i = 0; i < 320*240*2; i += 0x400) {
+	for(i = 0; i < FB_SIZE; i += 0x400) {
 		invalidate_tlb(0xe0050000 + i);
 	}
 }

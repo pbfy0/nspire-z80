@@ -2,6 +2,7 @@
 #include "lcd.h"
 #include "util.h"
 #include "_syscalls.h"
+#include "mmu_mmap.h"
 #include "aligned_alloc.h"
 
 struct lcd_state {
@@ -46,10 +47,13 @@ struct buf_p {
 	uint8_t *phys;
 	uint8_t *virt;
 };
-struct buf_p front_buffer;
+
 struct buf_p back_buffer;
 aligned_ptr framebuffer_a;
+#ifdef LCD_DOUBLE_BUFFER
+struct buf_p front_buffer;
 aligned_ptr framebuffer_b;
+#endif
 static uint32_t * const palette = (uint32_t *)0xC0000200;
 static uint32_t * lcd_control;
 static unsigned is_hww = 0;
@@ -104,6 +108,7 @@ void _n_set_84_pixel_hww(int x, int y, uint8_t gray, uint32_t fb_a);
 
 n_set_84_pixel_t correct_setpixel;
 
+#ifdef LCD_DOUBLE_BUFFER
 struct pixel_write {
 	uint8_t x;
 	uint8_t y : 7;
@@ -113,6 +118,7 @@ struct pixel_write {
 struct pixel_write write_buffer[1024];
 unsigned write_idx = 0;
 unsigned wr_overflow = 0;
+#endif
 
 static void fb_setup(uint8_t *buf) {
 	int x, y, i = 0;
@@ -140,13 +146,17 @@ void m_lcd_init(){
 	lcd_control = IO_LCD_CONTROL;
 	
 	
-	framebuffer_a = x_aligned_alloc(0x1000, 320*240*2);
+	framebuffer_a = x_aligned_alloc(0x1000, FB_SIZE);
 	map_framebuffer(framebuffer_a.ptr);
 	//framebuffer_b = x_aligned_alloc(8, 320*240);
+#ifdef LCD_DOUBLE_BUFFER
 	front_buffer = (struct buf_p){framebuffer_a.ptr, 0xe0050000};
 	back_buffer = (struct buf_p){((uint8_t *)front_buffer.phys) + 320*240, 0xe0050000 + 320*240};
-	
 	fb_setup(front_buffer.virt);
+#else
+	back_buffer = (struct buf_p){framebuffer_a.ptr, 0xe0050000};
+#endif
+	
 	fb_setup(back_buffer.virt);
 	
 	//front_buffer[0] = front_buffer[1] = front_buffer[320] = front_buffer[321] = 2;
@@ -155,12 +165,19 @@ void m_lcd_init(){
 	//memset(framebuffer, 0xff, 320*240);
 	
 	b_lcd_control = *lcd_control;
-	*lcd_control = (*lcd_control & ~0b1110 & ~(0b11 << 12)) | 0b0110 | (0b00 << 12); // 8 bpp, palette. Interrupt on VSync
+	*lcd_control = (*lcd_control & ~0b1110) | 0b0110; // 8 bpp, palette.
+#ifdef LCD_DOUBLE_BUFFER
+	*lcd_control = (*lcd_control & ~(0b11 << 12)) | (0b00 << 12); // Interrupt on VSync
 	b_int = *(uint32_t *)0xc000001c;
 	*(uint32_t *)0xc000001c = 1<<3; // v compare interrupt
+#endif
 	
 	os_framebuffer = REAL_SCREEN_BASE_ADDRESS;
+#ifdef LCD_DOUBLE_BUFFER
 	REAL_SCREEN_BASE_ADDRESS = front_buffer.phys;
+#else
+	REAL_SCREEN_BASE_ADDRESS = back_buffer.phys;
+#endif
 	
 	c_offset = xy_to_fbo(C_XO, C_YO);
 	correct_setpixel = is_hww ? _n_set_84_pixel_hww : _n_set_84_pixel;
@@ -172,7 +189,9 @@ void m_lcd_init(){
 }
 
 void lcd_end(){
+#ifdef LCD_DOUBLE_BUFFER
 	*(uint32_t *)0xc000001c = b_int;
+#endif
 	REAL_SCREEN_BASE_ADDRESS = os_framebuffer;
 	*lcd_control = b_lcd_control;
 	x_aligned_free(framebuffer_a);
@@ -242,14 +261,17 @@ static void set_pixel(int x, int y, uint8_t val, uint8_t *buf){
 	if(get_pixel(x, y) == vv) return;
 	if(y < 64 && x < 96) {
 		n_set_84_pixel(x, y, vv, buf);
+#ifdef LCD_DOUBLE_BUFFER
 		if(write_idx == sizeof(write_buffer) / sizeof(write_buffer[0])) {
 			wr_overflow = 1;
 			return;
 		}
 		write_buffer[write_idx++] = (struct pixel_write){ .x = x, .y = y, .v = vv };
+#endif
 	}
 }
 
+#ifdef LCD_DOUBLE_BUFFER
 void lcd_int() {
 	*(uint32_t *)0xc0000028 = 1<<3; // acknowledge interrupt;
 	swap_buffers();
@@ -272,6 +294,7 @@ static void swap_buffers() {
 	}
 	write_idx = 0;
 }
+#endif
 
 
 void set_contrast(uint8_t contrast){
@@ -358,6 +381,8 @@ void lcd_auto_move(){
 	}
 
 }
+
+#ifdef LCD_DOUBLE_BUFFER
 static void irq_enable(){
 	unsigned dummy;
 	__asm__ volatile(
@@ -375,16 +400,21 @@ static void irq_disable(){
 		" msr cpsr_c, %0\n" : "+r"(dummy)
 	);
 }
+#endif
 
 void lcd_data(uint8_t data){
 	int i;
 	int x = ls.cur_col * ls.n_bits;
 	int y = ls.cur_row;
+#ifdef LCD_DOUBLE_BUFFER
 	irq_disable();
+#endif
 	for(i = 0; i < ls.n_bits; i++){
 		set_pixel(x + i, y & 0x3f, data & (1<<(ls.n_bits-1-i)), back_buffer.virt);
 	}
+#ifdef LCD_DOUBLE_BUFFER
 	irq_enable();
+#endif
 	lcd_auto_move();
 	/*if(data && !isKeyPressed(KEY_84_ALPHA)){
 		while(!isKeyPressed(KEY_84_2ND));

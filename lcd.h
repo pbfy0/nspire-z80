@@ -12,6 +12,12 @@ uint8_t lcd_data_read();
 void lcd_save(FILE *f);
 void lcd_restore(FILE *f);
 
+#ifdef LCD_DOUBLE_BUFFER
+#define FB_SIZE (320*240*2)
+#else
+#define FB_SIZE (320*240)
+#endif
+
 #define BIT_6 0
 #define BIT_8 1
 #define LCD_DISABLE 2

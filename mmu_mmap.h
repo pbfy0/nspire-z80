@@ -14,6 +14,8 @@ uint8_t mmap_in(uint8_t port);
 void mmu_portEF_out(uint8_t val, uint8_t port);
 uint8_t mmu_portEF_in(uint8_t port);
 
+void map_framebuffer(void *buf);
+
 void mmu_init();
 void mmu_end();
 

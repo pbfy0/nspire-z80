@@ -47,7 +47,11 @@ void interrupt_init(){
 	
 	ei_backup = VIC_REG(0x10);
 	VIC_REG(0x14) = ~0; // disable all interrupts
-	VIC_REG(0x10) |= 1<<21 | 1<<18 | 1<<16; // lcd, timer 1, keypad
+	VIC_REG(0x10) |= 
+#ifdef LCD_DOUBLE_BUFFER
+		1<<21 | // lcd
+#endif
+		1<<18 | 1<<16; // timer 1, keypad
 	puts("C");
 	kp_bkp.int_mask = keypad->int_mask;
 	kp_bkp.tp_int_mask = keypad->tp_int_mask;
@@ -85,9 +89,11 @@ void __attribute__((interrupt("IRQ"))) irq_handler(){
 	if(int_status & 1<<18) {
 		speedcontrol_int();
 	}
+#ifdef LCD_DOUBLE_BUFFER
 	if(int_status & 1<<21) {
 		lcd_int();
 	}
+#endif
 }
 
 static void irq_enable(){
