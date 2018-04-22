@@ -86,24 +86,30 @@ void io_init(){
 	ports[0x0F].mirror = &ports[0x0E];
 	
 	ports[0x10].name = "lcd command";
+#ifdef NO_LCD
+	ports[0x10].const_val = 0;
+#else
 #ifndef USE_CSE
-	//ports[0x10].const_val = 0;
 	ports[0x10].in.r = lcd_cmd_read;
 	ports[0x10].out.r = lcd_cmd;
 #else
 	ports[0x10].out.r = cselcd_ctrl_out;
 #endif
+#endif
 	ports[0x12].mirror = &ports[0x10];
 	
 	
 	ports[0x11].name = "lcd data";
+#ifdef NO_LCD
+	ports[0x11].const_val = 0;
+#else
 #ifndef USE_CSE
-	//ports[0x11].const_val = 0;
 	ports[0x11].in.r = lcd_data_read;
 	ports[0x11].out.r = lcd_data;
 #else
 	ports[0x11].in.r = cselcd_data_in;
 	ports[0x11].out.r = cselcd_data_out;
+#endif
 #endif
 	ports[0x13].mirror = &ports[0x11];
 	

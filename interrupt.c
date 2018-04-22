@@ -77,7 +77,7 @@ void __attribute__((interrupt("IRQ"))) irq_handler(){
 	uint32_t int_status = VIC_REG(0x00);
 
 	if(int_status & 1<<16) {
-		keypad->int_stat = 1<<1;
+		keypad->int_stat = 7;
 		if(isKeyPressed(KEY_NSPIRE_ON)){
 			int_fire(INT_ON);
 		}

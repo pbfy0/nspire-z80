@@ -36,10 +36,46 @@ __attribute__((naked)) void set_mmu_addr(intptr_t a) {
 	);
 }
 
+static void invalidate_tlb_all() {
+	asm volatile(
+	"	mcr p15, 0, %0, c8, c6, 0\n" ::"r"(0)
+	);
+}
+
+static void clean_dcache_all() {
+	asm volatile(
+		"1:	mrc p15, 0, r15, c7, c10, 3\n" //test and clean
+		"	bne 1b\n"
+	::: "cc"); // modifies condition codes
+}
+
+static void clean_inval_dcache_all() {
+	asm volatile(
+		"1:	mrc p15, 0, r15, c7, c14, 3\n" //test and clean
+		"	bne 1b\n"
+	::: "cc"); // modifies condition codes
+
+}
+
+static void clean_inval_dcache(intptr_t a) {
+	asm volatile(
+		"	mcr p15, 0, %0, c7, c14, 1\n"
+	::"r"(a));
+}
+
+static void get_cache_type() {
+	uint32_t v;
+	asm volatile(
+	"	mrc p15,0,%0,c0,c0,1\n"
+	:"=r"(v));
+	return v;
+}
+
+
 __attribute__((naked)) void *invalidate_tlb(intptr_t a) {
 	(void)a;
 	asm volatile(
-	"mcr p15, 0, r0, c8, c7, 1\n\t"
+	"mcr p15, 0, r0, c8, c6, 1\n\t"
 	"bx lr\n\t"
 	);
 }
@@ -81,6 +117,9 @@ uint8_t *mem_base;
 uint32_t *section_base;
 uint32_t *section_base_l;
 
+uint32_t *m_section_base = 0xe0040000;
+uint32_t *m_section_base_l = 0xe0040400;
+
 aligned_ptr mem_base_al;
 aligned_ptr section_base_al;
 aligned_ptr section_base_l_al;
@@ -118,29 +157,86 @@ static void *ROM_PAGE(unsigned x) {
 static void update67();
 
 static void map_in(int idx, void *base, bool ro) {
+	//puts("map_in a");
 	int i;
 	intptr_t b2 = (intptr_t)base & ~0xfff;
-	uint32_t* sb = section_base + idx * 4;
-	uint32_t* sbl = section_base_l + 0xf0 + idx * 4;
+	uint32_t* sb = m_section_base + idx * 4;
+	//uint32_t* sb_nm = section_base + idx * 4;
+	uint32_t* sbl = m_section_base_l + 0xf0 + idx * 4;
+	//uint32_t* sbl_nm = section_base_l + 0xf0 + idx * 4;
+	if((sb[0] & ~0xfff) == b2) {
+		//puts("map_in b");
+		return;
+	}
 	//printf("mapping %04x -> %02x\n", idx * 0x4000, ((uint8_t *)base - mem_base) / 0x4000);
 #ifdef MMU_DEBUG
 	if(!testing) printf("mapping %p -> %p = %p (%p, %02x)\n", 0xe0000000 + (idx * 0x4000), base, b2, (uint8_t *)base - mem_base, ((uint8_t *)base - mem_base) / 0x4000);
 #endif
 // TODO: figure out exactly which clear_cache invocations are necessary
-	clear_cache();
+	//clean_dcache_all();
 	ro = 0;
 	//if(b2 - (intptr_t)mem_base > FLASH_SIZE + RAM_SIZE) printf("illegal start of page %04x %p - b=%p!\n", idx * 0x4000, base, mem_base);
 	//if(b2 - (intptr_t)mem_base + 0x4000 > FLASH_SIZE + RAM_SIZE) printf("illegal end of page %04x %p - b=%p!\n", idx * 0x4000, base, mem_base);
+	uint32_t *mb = 0xe0000000 + idx * 0x4000;
+	//for(i = 0; i < 4; i++, mb += 0x1000) {
+		// absurdly slow in emulator
+		int j;
+		for(j = 0; j < 0x4000; j += 8) {
+			clean_inval_dcache(mb + j);
+		}
+		//invalidate_tlb(sbl[i] & 0xfffff000);
+		//invalidate_tlb(sb[i] & 0xfffff000);
+		//invalidate_tlb(sb[i+16] & 0xfffff000);
+		//clean_inval_dcache(mb + i * 0x1000); // dump data in dcache to old memory location
+	//}
+	//clean_inval_dcache_all();
+	//uint32_t z = *(uint32_t *)base;
+	//uint32_t q = rand();
+	//*(uint32_t *)base = q;
+	//clean_inval_dcache(base);
 	for(i = 0; i < 4; i++) {
-		sbl[i] = (b2 + 0x1000 * i) | 0b0010 | (ro ? 0 : 0xff0);
-		sb[i] = (b2 + 0x1000 * i) | 0b0010 | (ro ? 0 : 0xff0);
-		sb[i+16] = (b2 + 0x1000 * i) | 0b0010 | (ro ? 0 : 0xff0);
+		sbl[i] = (b2 + 0x1000 * i) | 0b1110 | (ro ? 0 : 0xff0);
+		sb[i] = (b2 + 0x1000 * i) | 0b1110 | (ro ? 0 : 0xff0);
+		sb[i+16] = (b2 + 0x1000 * i) | 0b1110 | (ro ? 0 : 0xff0);
 	}
-	clear_cache();
-	for(i = 0; i < 4; i++) {
-		invalidate_tlb(sbl[i] & 0xfffff000);
-		invalidate_tlb(sb[i] & 0xfffff000);
-		invalidate_tlb(sb[i+16] & 0xfffff000);
+	// translation table is write-through, so cache clear isn't necessary
+	//clean_inval_dcache_all();
+	//for(i = 0; i < 4; i++) {
+	//	printf("%08x\n", sb_nm[i]);
+	//}
+	for(i = 0; i < 16; i++) {
+		//invalidate_tlb(sbl[i] & 0xfffff000);
+		//invalidate_tlb(sb[i] & 0xfffff000);
+		//invalidate_tlb(sb[i+16] & 0xfffff000);
+		invalidate_tlb(0xe0000000 + idx * 0x4000 + i * 0x400);
+	}
+	//invalidate_tlb_all();
+	//uint32_t zz = *(uint32_t *)(0xe0000000 + (idx * 0x4000));
+	//if(zz != q) {
+	//	printf("page at %p failed to map to idx %d -- expected=%08x, actual=%08x\n", base, idx, q, zz);
+	//}
+	//*(uint32_t *)(0xe0000000 + (idx * 0x4000)) = z;
+	//int qqq;
+	//for(qqq = 0; qqq < 100000; qqq++);
+	//for(i = 0; i < 4; i++) {
+		//invalidate_tlb(sbl[i] & 0xfffff000);
+		//invalidate_tlb(sb[i] & 0xfffff000);
+		//invalidate_tlb(sb[i+16] & 0xfffff000);
+		//clean_inval_dcache(0xe0000000 + idx * 0x4000 + i * 0x1000); // dump data in dcache to old memory location
+	//}
+	//clean_dcache_all();
+	//invalidate_tlb_all();
+	//puts("map_in c");
+}
+
+void map_framebuffer(void *buf) {
+	int i, j;
+	intptr_t bb = buf;
+	for(i = 0, j=0; i < 320*240*2; i += 0x1000, j++) {
+		m_section_base[0x50+j] = bb + i | 0b1010 | 0xff0;
+	}
+	for(i = 0; i < 320*240*2; i += 0x400) {
+		invalidate_tlb(0xe0050000 + i);
 	}
 }
 
@@ -175,7 +271,7 @@ unsigned mmap_check_endboot(uint16_t pc){
 	return normal;
 }
 
-/*static void clear_dcache(void) {
+/*static void clean_dcache_all(void) {
 	unsigned dummy;
 	__asm volatile(
 		" .arm \n"
@@ -253,11 +349,16 @@ void mmu_test() {
 void __attribute__((interrupt("ABORT"), naked)) abort_handler(){
 	asm volatile(
 	"push {r0, r1, r2}\n" // r2 is placeholder
+"	mov r0, #1\n"
 "	mrc p15, 0, r0, c6, c0, 0\n"
+//"	add r0, #1\n"
+//"	str r0, dah_happened\n"
+//"	sub r0, #1\n"
 "	subs r0,  #0xe0000000\n"
-"	movge r1, %0\n"
+//"	movge r1, %0\n"
+"	movge r1, #0x10000\n"
 "	cmpge r1, r0\n"
-"	popge {r0, r1}\n"
+"	popge {r0, r1, r2}\n"
 "	subges pc, lr, #4\n"
 "	adr r0, 1f\n"
 "	ldr r1, [r0]\n"
@@ -267,7 +368,9 @@ void __attribute__((interrupt("ABORT"), naked)) abort_handler(){
 "	ldr r0, [r0]\n"
 "	str r0, [sp, #8]\n"
 "	pop {r0, r1, pc}\n"
-"1:	.word o_dah-.\n\t"
+"1:	.word o_dah-.\n"
+//"dah_happened:	.word 0\n"
+//"	.global dah_happened\n"
 	: : "i"(FLASH_SIZE+RAM_SIZE) );
 }
 
@@ -290,16 +393,17 @@ void mprotect_end() {
 }
 
 void mmu_init() {
+	mprotect_init();
 	mmu_base = get_mmu_addr();
 	printf("mmu_base %p\n", mmu_base);
 	mem_base_al = x_aligned_alloc(0x1000, RAM_SIZE + FLASH_SIZE);
 	mem_base = mem_base_al.ptr;
 	int t2_size = 0x100;
-	section_base_al = x_aligned_alloc(0x400, 4 * t2_size);
-	section_base_l_al = x_aligned_alloc(0x400, 4 * t2_size);
+	section_base_al = x_aligned_alloc(0x1000, 2 * 4 * t2_size);
+	//section_base_l_al = x_aligned_alloc(0x400, 4 * t2_size);
 	
 	section_base = section_base_al.ptr;
-	section_base_l = section_base_l_al.ptr;
+	section_base_l = section_base + t2_size;//section_base_l_al.ptr;
 	int i;
 	for(i = 0; i < t2_size; i++) {
 		section_base[i] = 0;
@@ -307,22 +411,32 @@ void mmu_init() {
 	for(i = 0; i < t2_size; i++) {
 		section_base_l[i] = 0;
 	}
+	printf("section_base=%p section_base_l=%p\n", section_base, section_base_l);
+	section_base[0x40] = (intptr_t)section_base | 0b111111111010; // write-through cache, full permissions
+	//section_base[0xf1] = (intptr_t)section_base_l | 0b111011;
+	
 	uint32_t aa = get_cr1();
 	printf("cr1=%08lx cr3=%08lx\n", aa, get_cr3());
 	set_cr1(aa | 1<<9); // enable ROM protection
 	//printf("cr1 = %08x", get_cr1());
 	memset(mem_base, 0, RAM_SIZE + FLASH_SIZE);
-	map_in(0, ROM_PAGE(BOOT_PAGE), 1);
+	//invalidate_tlb_all();
+
 	/*mmu_port5_out(0);
 	mmu_port67_out(0, 6);
 	mmu_port67_out(0, 7);*/
 	
 	// domain 1, Client mode
-	mprotect_init();
 	set_cr3(get_cr3() | (1 << 2));
 	mmu_base[0xdff] = (intptr_t)section_base_l | 0b000110001;
 	mmu_base[0xe00] = (intptr_t)section_base | 0b000110001;
-	clear_cache();
+	clean_inval_dcache_all();
+	invalidate_tlb_all();
+	//invalidate_tlb(0xe00f0000);
+	//invalidate_tlb(0xe00f1000);
+
+	//asm("	bkpt #1\n");
+	map_in(0, ROM_PAGE(BOOT_PAGE), 1);
 	
 	flash = mem_base;
 	ram = mem_base + FLASH_SIZE;
@@ -333,7 +447,7 @@ void mmu_init() {
 	mmu_port5_out(0);
 	mmu_port67_out(0, 6);
 	mmu_port67_out(0, 7);
-	
+	//asm("	bkpt #0\n");
 	//*(uint32_t *)0xe0000000 = 0x12345678;
 }
 

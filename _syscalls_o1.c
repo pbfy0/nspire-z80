@@ -16,3 +16,7 @@ void _free(void *ptr) {
 scr_type_t _lcd_type(){
 	return wa_syscall(e_nl_lcd_type);
 }
+
+size_t real_puts(const char *ptr) {
+	return wa_syscall1(e_puts, ptr);
+}

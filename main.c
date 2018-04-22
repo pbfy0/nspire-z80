@@ -39,6 +39,7 @@ size_t __wrap_printf(const char *format, ...) {
 	if(g_stream == NULL) {
 		z = vprintf(format, args);
 	} else {
+		//vprintf(format, args);
 		z = navnet_io_vprintf(g_stream, format, args);
 	}
 	va_end(args);
@@ -55,6 +56,7 @@ size_t __wrap_puts(const char *str) {
 //uint8_t *flash;
 struct DrZ80 ZCpu;
 uint32_t port_debug = 0;
+//volatile extern unsigned dah_happened;
 
 int main(int argc, char **argv){
 	navnet_io_early();
@@ -70,10 +72,12 @@ int main(int argc, char **argv){
 	printf("begin\n");
 	mmu_init();
 	printf("mmu_init done\n");
+#ifndef NO_LCD
 #ifdef USE_CSE
 	cselcd_init();
 #else
 	m_lcd_init();
+#endif
 #endif
 	cpu_init();
 	
@@ -106,7 +110,7 @@ int main(int argc, char **argv){
 	puts("b");
 	interrupt_init();
 	puts("c");
-	memset(REAL_SCREEN_BASE_ADDRESS, 2, 100);
+	//memset(REAL_SCREEN_BASE_ADDRESS, 2, 100);
 	int cycles_to_run = timer_after(0);
 	int i = 0;
 	
@@ -120,7 +124,7 @@ int main(int argc, char **argv){
 		speedcontrol_before();
 		//puts("loop a");
 		int cycles_left = /*(ZCpu.Z80IF & Z80_HALT) && (ZCpu.Z80_IRQ == 0) ? 0 : */DrZ80Run(&ZCpu, cycles_to_run);
-		int cycles_elapsed = cycles_to_run == cycles_left ? 100 : cycles_to_run - cycles_left;
+		int cycles_elapsed = cycles_to_run == cycles_left ? 1000 : cycles_to_run - cycles_left;
 		//puts("loop b");
 		if(isKeyPressed(KEY_NSPIRE_CAT)) {
 			char *pc = (char *)ZCpu.Z80PC;
@@ -131,13 +135,16 @@ int main(int argc, char **argv){
 		}
 		//puts("loop c");
 		
-		uint32_t a = isKeyPressed(KEY_NSPIRE_P);
-		if(a && !p_pressed) {
-			p_pressed = 1;
-			port_debug ^= 1;
-		}
-		if(p_pressed && !a) p_pressed = 0;
-		
+		port_debug = isKeyPressed(KEY_NSPIRE_P);
+		//if(a && !p_pressed) {
+		//	p_pressed = 1;
+		//	port_debug ^= 1;
+		//}
+		//if(p_pressed && !a) p_pressed = 0;
+		//if(dah_happened) {
+		//	printf("data abort happened at %p\n", dah_happened);
+		//	dah_happened = 0;
+		//}
 		cycles_to_run = timer_after(cycles_elapsed);
 		if(isKeyPressed(KEY_NSPIRE_ESC)) break;
 		speedcontrol_after(cycles_elapsed);
@@ -154,10 +161,12 @@ int main(int argc, char **argv){
 		//refresh_osscr();
 	}
 	puts("E3");
+#ifndef NO_LCD
 #ifdef USE_CSE
 	cselcd_end();
 #else
 	lcd_end();
+#endif
 #endif
 	puts("E4");
 	speedcontrol_end();
