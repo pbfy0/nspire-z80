@@ -161,9 +161,7 @@ static void map_in(int idx, void *base, bool ro) {
 	int i;
 	intptr_t b2 = (intptr_t)base & ~0xfff;
 	uint32_t* sb = m_section_base + idx * 4;
-	//uint32_t* sb_nm = section_base + idx * 4;
 	uint32_t* sbl = m_section_base_l + 0xf0 + idx * 4;
-	//uint32_t* sbl_nm = section_base_l + 0xf0 + idx * 4;
 	if((sb[0] & ~0xfff) == b2) {
 		//puts("map_in b");
 		return;
@@ -172,28 +170,16 @@ static void map_in(int idx, void *base, bool ro) {
 #ifdef MMU_DEBUG
 	if(!testing) printf("mapping %p -> %p = %p (%p, %02x)\n", 0xe0000000 + (idx * 0x4000), base, b2, (uint8_t *)base - mem_base, ((uint8_t *)base - mem_base) / 0x4000);
 #endif
-// TODO: figure out exactly which clear_cache invocations are necessary
-	//clean_dcache_all();
-	ro = 0;
 	//if(b2 - (intptr_t)mem_base > FLASH_SIZE + RAM_SIZE) printf("illegal start of page %04x %p - b=%p!\n", idx * 0x4000, base, mem_base);
 	//if(b2 - (intptr_t)mem_base + 0x4000 > FLASH_SIZE + RAM_SIZE) printf("illegal end of page %04x %p - b=%p!\n", idx * 0x4000, base, mem_base);
 	uint32_t *mb = 0xe0000000 + idx * 0x4000;
-	//for(i = 0; i < 4; i++, mb += 0x1000) {
-		// absurdly slow in emulator
-		int j;
-		for(j = 0; j < 0x4000; j += 8) {
-			clean_inval_dcache(mb + j);
-		}
-		//invalidate_tlb(sbl[i] & 0xfffff000);
-		//invalidate_tlb(sb[i] & 0xfffff000);
-		//invalidate_tlb(sb[i+16] & 0xfffff000);
-		//clean_inval_dcache(mb + i * 0x1000); // dump data in dcache to old memory location
-	//}
-	//clean_inval_dcache_all();
-	//uint32_t z = *(uint32_t *)base;
-	//uint32_t q = rand();
-	//*(uint32_t *)base = q;
-	//clean_inval_dcache(base);
+	
+	// flush cached entries from old mapping to RAM
+	int j;
+	for(j = 0; j < 0x4000; j += 8) {
+		clean_inval_dcache(mb + j);
+	}
+	
 	for(i = 0; i < 4; i++) {
 		sbl[i] = (b2 + 0x1000 * i) | 0b1110 | (ro ? 0 : 0xff0);
 		sb[i] = (b2 + 0x1000 * i) | 0b1110 | (ro ? 0 : 0xff0);
@@ -201,32 +187,11 @@ static void map_in(int idx, void *base, bool ro) {
 	}
 	// translation table is write-through, so cache clear isn't necessary
 	//clean_inval_dcache_all();
-	//for(i = 0; i < 4; i++) {
-	//	printf("%08x\n", sb_nm[i]);
-	//}
+
+	// clear TLB for newly-mapped page
 	for(i = 0; i < 16; i++) {
-		//invalidate_tlb(sbl[i] & 0xfffff000);
-		//invalidate_tlb(sb[i] & 0xfffff000);
-		//invalidate_tlb(sb[i+16] & 0xfffff000);
 		invalidate_tlb(0xe0000000 + idx * 0x4000 + i * 0x400);
 	}
-	//invalidate_tlb_all();
-	//uint32_t zz = *(uint32_t *)(0xe0000000 + (idx * 0x4000));
-	//if(zz != q) {
-	//	printf("page at %p failed to map to idx %d -- expected=%08x, actual=%08x\n", base, idx, q, zz);
-	//}
-	//*(uint32_t *)(0xe0000000 + (idx * 0x4000)) = z;
-	//int qqq;
-	//for(qqq = 0; qqq < 100000; qqq++);
-	//for(i = 0; i < 4; i++) {
-		//invalidate_tlb(sbl[i] & 0xfffff000);
-		//invalidate_tlb(sb[i] & 0xfffff000);
-		//invalidate_tlb(sb[i+16] & 0xfffff000);
-		//clean_inval_dcache(0xe0000000 + idx * 0x4000 + i * 0x1000); // dump data in dcache to old memory location
-	//}
-	//clean_dcache_all();
-	//invalidate_tlb_all();
-	//puts("map_in c");
 }
 
 void map_framebuffer(void *buf) {
@@ -351,11 +316,7 @@ void __attribute__((interrupt("ABORT"), naked)) abort_handler(){
 	"push {r0, r1, r2}\n" // r2 is placeholder
 "	mov r0, #1\n"
 "	mrc p15, 0, r0, c6, c0, 0\n"
-//"	add r0, #1\n"
-//"	str r0, dah_happened\n"
-//"	sub r0, #1\n"
 "	subs r0,  #0xe0000000\n"
-//"	movge r1, %0\n"
 "	movge r1, #0x10000\n"
 "	cmpge r1, r0\n"
 "	popge {r0, r1, r2}\n"
@@ -369,9 +330,7 @@ void __attribute__((interrupt("ABORT"), naked)) abort_handler(){
 "	str r0, [sp, #8]\n"
 "	pop {r0, r1, pc}\n"
 "1:	.word o_dah-.\n"
-//"dah_happened:	.word 0\n"
-//"	.global dah_happened\n"
-	: : "i"(FLASH_SIZE+RAM_SIZE) );
+	);
 }
 
 void (*o_dah)(void);
