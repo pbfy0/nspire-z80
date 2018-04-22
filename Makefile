@@ -6,11 +6,25 @@ GXX = nspire-g++
 LD  = nspire-ld
 GENZEHN = genzehn
 
+NSPIREIO ?= FALSE
+NAVNETIO ?= FALSE
+
 GCCFLAGS ?= 
 GCCFLAGS += -Wall -W -marm # -include _nn_insert.h# -DKEYS_H # -mfloat-abi=softfp -mfpu=vfpv3 -nostdlib
 O1FLAGS = 
-LDFLAGS = -Wl,-wrap,printf -Wl,-wrap,puts #-Wl,--nspireio # -Wl,-wrap,printf -Wl,-wrap,puts#-Wl,-nostdlib -lndls -lsyscalls
+LDFLAGS = # -Wl,--nspireio # -Wl,-wrap,printf -Wl,-wrap,puts # -Wl,-wrap,printf -Wl,-wrap,puts#-Wl,-nostdlib -lndls -lsyscalls
 ZEHNFLAGS = --name "nspire-z80" --uses-lcd-blit false --240x320-support true
+
+DEPLOY_DIR =
+
+ifeq ($(NSPIREIO),TRUE)
+	LDFLAGS += -Wl,--nspireio
+	GCCFLAGS += -DNO_LCD
+endif
+
+ifeq ($(NAVNETIO),TRUE)
+	LDFLAGS += -Wl,-wrap,printf -Wl,-wrap,puts
+endif
 
 ifeq ($(DEBUG),FALSE)
 	GCCFLAGS += -Os
@@ -51,6 +65,9 @@ $(EXE).tns: $(EXE).elf
 	$(GENZEHN) --input $^ --output $@.zehn $(ZEHNFLAGS)
 	make-prg $@.zehn $@
 	rm $@.zehn
+
+deploy: $(EXE).tns
+	NavNet_launcher.exe NavNet_upload.exe "$(shell readlink -f $(EXE).tns | sed -e 's|/mnt/\(.\)/|\U\1:\\|' -e 's|/|\\|g')" "$(DEPLOY_DIR)$(EXE).tns"
 
 clean:
 	rm -f $(addprefix $(DISTDIR)/,$(OBJS)) $(DISTDIR)/$(EXE).tns $(DISTDIR)/$(EXE).elf $(DISTDIR)/$(EXE).zehn
