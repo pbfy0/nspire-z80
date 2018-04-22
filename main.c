@@ -163,7 +163,7 @@ int main(int argc, char **argv){
 		free(sav_romname);
 	}else{
 		savestate_save(argv[1]);
-		//refresh_osscr();
+		refresh_osscr();
 	}
 	puts("E3");
 #ifndef NO_LCD
