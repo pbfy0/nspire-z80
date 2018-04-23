@@ -22,19 +22,18 @@
 #define PAGE_SIZE 0x4000
 #define FLASH_PAGES (FLASH_SIZE / PAGE_SIZE)
 
-__attribute__((naked)) void *get_mmu_addr() {
+static void *get_mmu_addr() {
+	void *v;
 	asm volatile(
-	"mrc p15, 0, r0, c2, c0, 0\n\t"
-	"bx lr\n\t"
-	);
+	"mrc p15, 0, %0, c2, c0, 0\n\t"
+	: "=r"(v));
+	return v;
 }
 
-__attribute__((naked)) void set_mmu_addr(intptr_t a) {
-	(void)a;
+static void set_mmu_addr(intptr_t a) {
 	asm volatile(
-	"mcr p15, 0, r0, c2, c0, 0\n\t"
-	"bx lr\n\t"
-	);
+	"mcr p15, 0, %0, c2, c0, 0\n\t"
+	:: "r"(a));
 }
 
 static void invalidate_tlb_all() {
@@ -73,43 +72,39 @@ static void get_cache_type() {
 }
 
 
-__attribute__((naked)) void *invalidate_tlb(intptr_t a) {
-	(void)a;
+static void *invalidate_tlb(intptr_t a) {
 	asm volatile(
-	"mcr p15, 0, r0, c8, c6, 1\n\t"
-	"bx lr\n\t"
-	);
+	"	mcr p15, 0, %0, c8, c6, 1\n"
+	:: "r"(a));
 }
 
 
-__attribute__((naked)) uint32_t get_cr1() {
+static uint32_t get_cr1() {
+	uint32_t v;
 	asm volatile(
-	"mrc p15, 0, r0, c1, c0, 0\n\t"
-	"bx lr\n\t"
-	);
+	"mrc p15, 0, %0, c1, c0, 0\n\t"
+	: "=r"(v));
+	return v;
 }
 
-__attribute__((naked)) void set_cr1(uint32_t v) {
-	(void)v;
+static void set_cr1(uint32_t v) {
 	asm volatile(
-	"mcr p15, 0, r0, c1, c0, 0\n\t"
-	"bx lr\n\t"
-	);
+	"mcr p15, 0, %0, c1, c0, 0\n\t"
+	::"r"(v));
 }
 
-__attribute__((naked)) uint32_t get_cr3() {
+static uint32_t get_cr3() {
+	uint32_t v;
 	asm volatile(
-	"mrc p15, 0, r0, c3, c0, 0\n\t"
-	"bx lr\n\t"
-	);
+	"mrc p15, 0, %0, c3, c0, 0\n\t"
+	: "=r"(v));
+	return v;
 }
 
-__attribute__((naked)) void set_cr3(uint32_t v) {
-	(void)v;
+static void set_cr3(uint32_t v) {
 	asm volatile(
-	"mcr p15, 0, r0, c3, c0, 0\n\t"
-	"bx lr\n\t"
-	);
+	"mcr p15, 0, %0, c3, c0, 0\n\t"
+	::"r"(v));
 }
 
 #include "_syscalls.h"
@@ -232,21 +227,9 @@ unsigned mmap_check_endboot(uint16_t pc){
 		printf("end boot\n");
 		normal = 1;
 		map_in(0, ROM_PAGE(0), 1);
-		clear_cache();
 	}
 	return normal;
 }
-
-/*static void clean_dcache_all(void) {
-	unsigned dummy;
-	__asm volatile(
-		" .arm \n"
-		"0: mrc p15, 0, r15, c7, c10, 3 @ test and clean DCache \n"
-		" bne 0b \n"
-		" mov %0, #0 \n"
-		" mcr p15, 0, %0, c7, c7, 0 @ invalidate ICache and DCache \n"
-	: "=r" (dummy));
-}*/
 
 uint8_t *flash;
 uint8_t *ram;

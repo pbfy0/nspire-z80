@@ -3,10 +3,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-void * get_mmu_addr();
-void set_mmu_addr(intptr_t a);
-uint32_t get_mmu_status();
-
 void mmu_port67_out(uint8_t val, uint8_t port);
 void mmu_port5_out(uint8_t val);
 uint8_t mmap_in(uint8_t port);
