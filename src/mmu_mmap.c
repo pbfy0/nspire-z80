@@ -457,6 +457,7 @@ uint8_t mmu_portEF_in(uint8_t port) {
 
 void mmu_end() {
 	//int i;
+	clean_inval_dcache_all();
 	mmu_base[0xdff] = 0;
 	mmu_base[0xe00] = 0;
 	//clear_cache();

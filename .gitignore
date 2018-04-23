@@ -1,7 +1,7 @@
 *.rom
-*.rom.tns
 *.tns
 *.elf
+*.zehn
 roms/
 roms/*
 build/
