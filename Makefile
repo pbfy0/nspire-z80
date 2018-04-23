@@ -15,6 +15,7 @@ O1FLAGS =
 LDFLAGS = # -Wl,--nspireio # -Wl,-wrap,printf -Wl,-wrap,puts # -Wl,-wrap,printf -Wl,-wrap,puts#-Wl,-nostdlib -lndls -lsyscalls
 ZEHNFLAGS = --name "nspire-z80" --uses-lcd-blit false --240x320-support true
 
+SRC_DIR = src
 DEPLOY_DIR =
 
 ifeq ($(NSPIREIO),TRUE)
@@ -34,9 +35,9 @@ else
 	O1FLAGS += -O1
 endif
 
-OBJS = $(patsubst %.c, %.o, $(shell find . -name \*.c))
-OBJS += $(patsubst %.cpp, %.o, $(shell find . -name \*.cpp))
-OBJS += $(patsubst %.s, %.o, $(shell find . -name \*.s))
+OBJS = $(patsubst %.c, %.o, $(shell find $(SRC_DIR) -name \*.c))
+OBJS += $(patsubst %.cpp, %.o, $(shell find $(SRC_DIR) -name \*.cpp))
+OBJS += $(patsubst %.s, %.o, $(shell find $(SRC_DIR) -name \*.s))
 EXE = nspire-z80
 DISTDIR = build
 vpath %.tns $(DISTDIR)
@@ -44,21 +45,21 @@ vpath %.elf $(DISTDIR)
 
 all: $(EXE).tns
 
-$(DISTDIR)/%.o: %.c
+$(DISTDIR)/%.o: $(SRC_DIR)/%.c
 	$(GCC) $(GCCFLAGS) -c $< -o $@
 
-$(DISTDIR)/%.o: %.cpp
+$(DISTDIR)/%.o: $(SRC_DIR)/%.cpp
 	$(GXX) $(GCCFLAGS) -c $< -o $@
 	
-$(DISTDIR)/%.o: %.s
+$(DISTDIR)/%.o: $(SRC_DIR)/%.s
 	$(AS) -c $< -o $@
 
-$(DISTDIR)/%_o1.o: %_o1.c
+$(DISTDIR)/%_o1.o: $(SRC_DIR)/%_o1.c
 	$(GCC) $(GCCFLAGS) $(O1FLAGS) -c $< -o $@
 
 
 
-$(EXE).elf: $(addprefix $(DISTDIR)/,$(OBJS))
+$(EXE).elf: $(patsubst $(SRC_DIR)/%,$(DISTDIR)/%, $(OBJS))
 	mkdir -p $(DISTDIR)
 	$(LD) $^ -o $@ $(LDFLAGS)
 
@@ -73,4 +74,4 @@ deploy: $(EXE).tns
 	NavNet_launcher.exe NavNet_upload.exe "$(shell readlink -f $(EXE).tns | sed -e 's|/mnt/\(.\)/|\U\1:\\|' -e 's|/|\\|g')" "$(DEPLOY_DIR)$(EXE).tns"
 
 clean:
-	rm -f $(addprefix $(DISTDIR)/,$(OBJS)) $(DISTDIR)/$(EXE).tns $(DISTDIR)/$(EXE).elf $(DISTDIR)/$(EXE).zehn
+	rm -f $(patsubst $(SRC_DIR)/%,$(DISTDIR)/%, $(OBJS)) $(EXE).tns $(EXE).elf $(EXE).tns.zehn
