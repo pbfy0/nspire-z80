@@ -39,7 +39,7 @@ static const unsigned char power_btn[20][3] = {
 	{0x01,0xf8,0x00}
 };
 
-struct lcd_state ls = { 0, 0, 0, 8, AUTO_DOWN, TRUE, 0, 0xff };
+struct lcd_state ls = { 0, 0, 0, 8, AUTO_DOWN, TRUE, 0, 0 };
 //uint8_t video_mem[120*64/8];
 
 void *os_framebuffer;
@@ -80,8 +80,11 @@ typedef uint8_t * byteptr;
 //#define FB_OFFSET(x, y) (((y) * 320 + (x)) >> 1)
 //#define printf(...)
 
-
+#ifdef LCD_DOUBLE_BUFFER
 static void swap_buffers();
+static uint32_t b_int;
+#endif
+
 static uint16_t pack_rgb(uint8_t r, uint8_t g, uint8_t b){
 	return b >> 3 | g >> 3 << 5 | r >> 3 << 10;
 }
@@ -139,7 +142,6 @@ static void fb_setup(uint8_t *buf) {
 }
 
 static uint32_t b_lcd_control;
-static uint32_t b_int;
 
 void m_lcd_init(){
 	is_hww = nl_ndless_rev() >= 2004 && _lcd_type() == SCR_240x320_565;
@@ -448,48 +450,44 @@ uint8_t lcd_data_read() {
 
 void lcd_save(FILE *f){
 	FWRITE_VALUE(ls, f);
-	struct lcd_state bls = ls;
-	ls.cur_col = 0;
-	ls.cur_row = 0;
-	ls.n_bits = 8;
-	ls.auto_mode = AUTO_RIGHT;
+	int y;
+	int j = 0;
 	uint8_t *b = malloc(768);
-	uint8_t *p = b;
-	int i;
-	for(i = 0; i < 64; i++){
-		int j;
-		for(j = 0; j < 96/8; j++){
-			*(p++) = _lcd_data_read();
+	for(y = 0; y < 64; y++) {
+		int x;
+		for(x = 0; x < 96;) {
+			int i;
+			uint8_t v = 0;
+			for(i = 0; i < 8; i++, x++) {
+				v <<= 1;
+				v |= get_pixel(x, y);
+			}
+			b[j++] = v;
 		}
-		ls.cur_row++;
-		ls.cur_col = 0;
 	}
 	fwrite(b, 768, 1, f);
 	free(b);
-	ls = bls;
 }
 
 void lcd_restore(FILE *f){
-	struct lcd_state nls;
-	FREAD_VALUE(&nls, f);
-	ls.cur_col = 0;
-	ls.cur_row = 0;
-	ls.n_bits = 8;
-	ls.auto_mode = AUTO_RIGHT;
+	FREAD_VALUE(&ls, f);
 	uint8_t *b = malloc(768);
 	fread(b, 768, 1, f);
 	uint8_t *p = b;
-	int i;
-	for(i = 0; i < 64; i++){
-		int j;
-		for(j = 0; j < 96/8; j++){
-			lcd_data(*(p++));
+	int y;
+	for(y = 0; y < 64; y++){
+		int x;
+		for(x = 0; x < 96;){
+			int i;
+			uint8_t d = *p++;
+			for(i = 0; i < 8; i++, x++) {
+				set_pixel(x, y, d >> 7, back_buffer.virt);
+				d <<= 1;
+			}
 		}
-		ls.cur_row++;
-		ls.cur_col = 0;
 	}
+
 	free(b);
-	ls = nls;
 	
 	set_contrast(ls.contrast);
 }
