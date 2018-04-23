@@ -8,6 +8,10 @@ struct z_interrupt_state {
 	uint8_t ints_firing;
 };
 
+bool is_on_pressed() {
+	return !((*(uint32_t *)0x900B0028) & (1<<4));
+}
+
 struct z_interrupt_state zis = {0, 0};
 
 void int_mask_out(uint8_t val){
@@ -36,7 +40,7 @@ void int_ack_out(uint8_t val){
 
 uint8_t int_id_in(){
 	//printf("int_id_in %02x\n", zis.ints_firing);
-	return zis.ints_firing | (isKeyPressed(KEY_NSPIRE_HOME) ? 0 : 1<<3);
+	return zis.ints_firing | (is_on_pressed() ? 0 : 1<<3);
 }
 
 void int_fire(uint8_t num){

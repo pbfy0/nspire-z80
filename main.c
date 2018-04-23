@@ -59,7 +59,7 @@ size_t __wrap_puts(const char *str) {
 //uint8_t *flash;
 struct DrZ80 ZCpu;
 uint32_t port_debug = 0;
-//volatile extern unsigned dah_happened;
+//volatile extern unsigned aaa;
 
 int main(int argc, char **argv){
 #ifdef USE_NAVNETIO
@@ -69,6 +69,7 @@ int main(int argc, char **argv){
 	printf("main = %p\n", main);
 	
 	if(argc == 1){
+		//cfg_register_fileext("8lnk", "nspire-z80");
 		cfg_register_fileext("8rom", "nspire-z80");
 		cfg_register_fileext("8sav", "nspire-z80");
 		show_msgbox("Info", "File extension registered. Open a 8rom file to use.");
@@ -91,11 +92,32 @@ int main(int argc, char **argv){
 	
 	int l = strlen(argv[1]);
 	char *sav_romname = NULL;
-	if(strncmp(argv[1] + l - 4 - 4, "8sav", 4) == 0){
-		savestate_load(argv[1], &sav_romname);
+	char *extn = argv[1] + l - 4 - 4;
+	char *load_file = argv[1];//[256];
+	/*if(strncmp(extn, "8lnk", 4) == 0) {
+		FILE *lnkfile;
+		if(!(lnkfile = fopen(argv[1], "rb"))){
+			show_msgbox("Error", "Could not open link");
+			return 1;
+		}
+		int n = fread(load_file, 1, 255, lnkfile);
+		load_file[n] = 0;
+		extn = load_file + n - 4 - 4;
+	} else {*/
+		//size_t l2 = strlen(argv[1]);
+		//if(l2 > 255) l2 = 255;
+		//memcpy(load_file, argv[1], l2);
+/*		load_file[l2] = 0;
+		extn = load_file + l2 - 4 - 4;
+		
+		FILE *newlnk = fopen();
+	}*/
+	
+	if(strncmp(extn, "8sav", 4) == 0){
+		savestate_load(load_file, &sav_romname);
 	}else{
 		FILE *romfile;
-		if(!(romfile = fopen(argv[1], "rb"))){
+		if(!(romfile = fopen(load_file, "rb"))){
 			show_msgbox("Error", "Could not open rom");
 			return 1;
 		}
@@ -123,10 +145,8 @@ int main(int argc, char **argv){
 	uint32_t p_pressed = 0;
 	while(1){
 		speedcontrol_before();
-		//puts("loop a");
 		int cycles_left = /*(ZCpu.Z80IF & Z80_HALT) && (ZCpu.Z80_IRQ == 0) ? 0 : */DrZ80Run(&ZCpu, cycles_to_run);
 		int cycles_elapsed = cycles_to_run == cycles_left ? 1000 : cycles_to_run - cycles_left;
-		//puts("loop b");
 		if(isKeyPressed(KEY_NSPIRE_CAT)) {
 			char *pc = (char *)ZCpu.Z80PC;
 			int pcb = ZCpu.Z80PC - ZCpu.Z80PC_BASE;
@@ -134,17 +154,11 @@ int main(int argc, char **argv){
 			printf("a	%02x	f	%02x	bc	%04x	de	%04x	hl	%04x\n", ZCpu.Z80A >> 24, ZCpu.Z80F >> 24, ZCpu.Z80BC >> 16, ZCpu.Z80DE >> 16, ZCpu.Z80HL >> 16);
 			printf("sp	%04x	ix	%04x	iy	%04x\n", ZCpu.Z80SP - ZCpu.Z80SP_BASE, ZCpu.Z80IX >> 16, ZCpu.Z80IY >> 16);
 		}
-		//puts("loop c");
 		
 		port_debug = isKeyPressed(KEY_NSPIRE_P);
-		//if(a && !p_pressed) {
-		//	p_pressed = 1;
-		//	port_debug ^= 1;
-		//}
-		//if(p_pressed && !a) p_pressed = 0;
-		//if(dah_happened) {
-		//	printf("data abort happened at %p\n", dah_happened);
-		//	dah_happened = 0;
+		//if(aaa) {
+		//	puts("aaa");
+		//	aaa = 0;
 		//}
 		cycles_to_run = timer_after(cycles_elapsed);
 		if(isKeyPressed(KEY_NSPIRE_ESC)) break;
@@ -154,10 +168,10 @@ int main(int argc, char **argv){
 	
 	if(sav_romname){
 		savestate_save(sav_romname);
+		//refresh_osscr();
 		free(sav_romname);
 	}else{
 		savestate_save(argv[1]);
-		refresh_osscr();
 	}
 #ifndef NO_LCD
 #ifdef USE_CSE

@@ -1,6 +1,5 @@
 #include "interrupt.h"
 #include "z_interrupt.h"
-static const t_key KEY_NSPIRE_ON        = KEY_(0x10, 0x200);
 
 static void irq_enable();
 static void irq_disable();
@@ -36,6 +35,8 @@ struct keypad volatile *keypad = (struct keypad *)KEYPAD_BASE;
 uint32_t *patch_base;
 extern volatile uint8_t flag;
 
+uint32_t pm_int_backup;
+
 
 void interrupt_init(){
 	uint32_t swi_addr = *(uint32_t *)0x28;
@@ -49,11 +50,13 @@ void interrupt_init(){
 #ifdef LCD_DOUBLE_BUFFER
 		1<<21 | // lcd
 #endif
-		1<<18 | 1<<16; // timer 1, keypad
+		1<<18 | 1<<16 | 1<<15; // timer 1, keypad, power management
 	kp_bkp.int_mask = keypad->int_mask;
 	kp_bkp.tp_int_mask = keypad->tp_int_mask;
 	keypad->int_mask = 1<<1;
 	keypad->tp_int_mask = 0;
+	pm_int_backup = *(volatile uint32_t *)0x900B0010;
+	*(volatile uint32_t *)0x900B0010 = 1;
 	patch_ndless_swi();
 	uint8_t i = is_classic;
 	(void)i;
@@ -64,20 +67,28 @@ void interrupt_end(){
 	irq_disable();
 	unpatch_ndless_swi();
 	*ISR_ADDR = isr_backup;
+	*(uint32_t *)0x900B0010 = pm_int_backup;
 	keypad->int_mask = kp_bkp.int_mask;
 	keypad->tp_int_mask = kp_bkp.tp_int_mask;
 	VIC_REG(0x14) = ~0;
 	VIC_REG(0x10) = ei_backup;
 }
 
+volatile unsigned aaa = 0;
+
 void __attribute__((interrupt("IRQ"))) irq_handler(){
 	uint32_t int_status = VIC_REG(0x00);
-
-	if(int_status & 1<<16) {
-		keypad->int_stat = 7;
-		if(isKeyPressed(KEY_NSPIRE_ON)){
+	if(int_status & 1<<15) {
+		*(volatile uint32_t *)0x900B0014 = 1;
+		if(is_on_pressed()) {
+			//aaa = 1;
 			int_fire(INT_ON);
 		}
+	}
+	if(int_status & 1<<16) {
+		keypad->int_stat = 1<<1;
+		//if(isKeyPressed(KEY_NSPIRE_HOME)){
+		//}
 	}
 	if(int_status & 1<<18) {
 		speedcontrol_int();

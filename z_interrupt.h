@@ -17,5 +17,7 @@ uint8_t int_id_in();
 void int_fire(uint8_t num);
 void int_callback();
 
+bool is_on_pressed();
+
 void int_save(FILE *f);
 void int_restore(FILE *f);
