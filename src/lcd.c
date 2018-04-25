@@ -55,7 +55,7 @@ struct buf_p front_buffer;
 aligned_ptr framebuffer_b;
 #endif
 static uint32_t * const palette = (uint32_t *)0xC0000200;
-static uint32_t * lcd_control;
+static volatile unsigned * lcd_control;
 static unsigned is_hww = 0;
 static unsigned xy_to_fbo(unsigned x, unsigned y){
 	if(is_hww) {
@@ -152,11 +152,11 @@ void m_lcd_init(){
 	map_framebuffer(framebuffer_a.ptr);
 	//framebuffer_b = x_aligned_alloc(8, 320*240);
 #ifdef LCD_DOUBLE_BUFFER
-	front_buffer = (struct buf_p){framebuffer_a.ptr, 0xe0050000};
-	back_buffer = (struct buf_p){((uint8_t *)front_buffer.phys) + 320*240, 0xe0050000 + 320*240};
+	front_buffer = (struct buf_p){framebuffer_a.ptr, (uint8_t *)0xe0050000};
+	back_buffer = (struct buf_p){((uint8_t *)front_buffer.phys) + 320*240, (uint8_t *)0xe0050000 + 320*240};
 	fb_setup(front_buffer.virt);
 #else
-	back_buffer = (struct buf_p){framebuffer_a.ptr, 0xe0050000};
+	back_buffer = (struct buf_p){framebuffer_a.ptr, (uint8_t *)0xe0050000};
 #endif
 	
 	fb_setup(back_buffer.virt);
@@ -254,6 +254,7 @@ static void n_set_84_pixel(int x, int y, uint8_t gray, uint8_t *buf){
 }
 
 static uint8_t get_pixel(int x, int y){
+	//printf("gp %d %d\n", x, y);
 	return back_buffer.virt[c_offset + xy_to_fbo(x*3, y*3)] && 1;
 }
 
@@ -366,10 +367,10 @@ uint8_t lcd_cmd_read(){
 void lcd_auto_move(){
 	switch(ls.auto_mode){
 		case AUTO_UP:
-			ls.cur_row--;
+			ls.cur_row = (ls.cur_row - 1) & 63;
 		break;
 		case AUTO_DOWN:
-			ls.cur_row++;
+			ls.cur_row = (ls.cur_row + 1) & 63;
 		break;
 		case AUTO_LEFT:
 			ls.cur_col--;

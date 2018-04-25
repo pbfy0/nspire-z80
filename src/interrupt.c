@@ -1,5 +1,6 @@
 #include "interrupt.h"
 #include "z_interrupt.h"
+#include "speedcontrol.h"
 
 static void irq_enable();
 static void irq_disable();

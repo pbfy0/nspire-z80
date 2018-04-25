@@ -10,6 +10,7 @@
 #include "speedcontrol.h"
 #include "savestate.h"
 #include "rtc.h"
+#include "main.h"
 #include <stdarg.h>
 #include <stddef.h>
 #include "navnet-io.h"
@@ -17,12 +18,11 @@
 #include "keys.h"
 
 void cpu_init();
-unsigned int cpu_rebasePC(uint32_t x);
-unsigned int cpu_rebaseSP(uint32_t x);
-unsigned short cpu_read16(uint32_t idx);
-unsigned char cpu_read8(uint32_t idx);
-void cpu_write16(unsigned short val, uint32_t idx);
-void cpu_write8(unsigned char val, uint32_t idx);
+void * cpu_rebaseSP(uint16_t x);
+unsigned short cpu_read16(uint16_t idx);
+unsigned char cpu_read8(uint16_t idx);
+void cpu_write16(unsigned short val, uint16_t idx);
+void cpu_write8(unsigned char val, uint16_t idx);
 unsigned char cpu_in(unsigned short port);
 //static unsigned char cpu_in_(unsigned short port);
 void cpu_out(unsigned short port, unsigned char val);
@@ -126,7 +126,7 @@ int main(int argc, char **argv){
 		fseek(romfile, 0, 0);
 		//printf("%d\n", romsize);
 		//flash = calloc(0x20000, 1);
-		printf("flash=%08x\n", flash);
+		printf("flash=%p\n", flash);
 		fread(flash, sizeof(char), romsize, romfile);
 		fclose(romfile);
 		clear_cache();
@@ -142,11 +142,11 @@ int main(int argc, char **argv){
 	// uint32_t *mem32 = (uint32_t *)0xe0000000;
 	// printf("%08x %08x %08x\n", mem32[0], mem32[1], mem32[2]);
 	// asm volatile("b .\n\t");
-	uint32_t p_pressed = 0;
 	while(1){
 		speedcontrol_before();
+		//printf("%d\n", cycles_to_run);
 		int cycles_left = /*(ZCpu.Z80IF & Z80_HALT) && (ZCpu.Z80_IRQ == 0) ? 0 : */DrZ80Run(&ZCpu, cycles_to_run);
-		int cycles_elapsed = cycles_to_run == cycles_left ? 1000 : cycles_to_run - cycles_left;
+		int cycles_elapsed = cycles_to_run == cycles_left ? 10000 : cycles_to_run - cycles_left;
 		if(isKeyPressed(KEY_NSPIRE_CAT)) {
 			char *pc = (char *)ZCpu.Z80PC;
 			int pcb = ZCpu.Z80PC - ZCpu.Z80PC_BASE;
@@ -190,8 +190,8 @@ int main(int argc, char **argv){
 }
 
 void cpu_trace() {
-	uint8_t *pc = ZCpu.Z80PC;
-	printf("XX XX %04x %02x%02x%02x%02x\n", pc - ZCpu.Z80PC_BASE, pc[0], pc[1], pc[2], pc[3]);//, ZCpu.Z80BC);
+	uint8_t *pc = (uint8_t *)ZCpu.Z80PC;
+	printf("XX XX %04x %02x%02x%02x%02x\n", (uintptr_t)(pc - ZCpu.Z80PC_BASE), pc[0], pc[1], pc[2], pc[3]);//, ZCpu.Z80BC);
 	printf("a   %02x	f   %02x	bc  %04x	de  %04x	hl  %04x\n", ZCpu.Z80A >> 24, ZCpu.Z80F >> 24, ZCpu.Z80BC >> 16, ZCpu.Z80DE >> 16, ZCpu.Z80HL >> 16);
 	printf("sp  %04x	ix  %04x	iy  %04x\n", ZCpu.Z80SP - ZCpu.Z80SP_BASE, ZCpu.Z80IX >> 16, ZCpu.Z80IY >> 16);
 }
@@ -223,11 +223,15 @@ void cpu_irq_callback(){
 	printf("pc(a) %02x v %04x\n", pc, cpu_read16(pc));
 }*/
 
-unsigned int null_rebasePC(uint32_t x) {
-	return 0xe0000000 + (x & 0xffff);
+void * null_rebasePC(uint16_t x) {
+	return Z80_MEM_BASE + (x & 0xffff);
 }
 
-unsigned int cpu_rebasePC(uint32_t x){
+void * cpu_rebasePC(uint16_t x){
+#ifdef DRZ80MEM_DEBUG
+	if(x & ~0xffff)
+		printf("Invalid rebasePC: %08x\n", x);
+#endif
 	//if(x == 0) printf("reset\n");
 	//printf("rebasePC 0x%04x\n", x);
 	//ZCpu.Z80PC_BASE = (unsigned int)flash;
@@ -238,24 +242,28 @@ unsigned int cpu_rebasePC(uint32_t x){
 	//if(ZCpu.Z80PC_BASE + (x & 0x3FFF) != flash + x) printf("pc %08x %p\n", ZCpu.Z80PC_BASE + (x & 0x3FFF), flash + x);
 	//printf("pc %p %08x\n", mmap_bank_for_addr(x) + (x & 0x3FFF), ZCpu.Z80PC_BASE + x);
 	//return ZCpu.Z80PC_BASE + x;
-	return 0xe0000000 + x;
+	return Z80_MEM_BASE + x;
 }
 
-unsigned int cpu_rebaseSP(uint32_t x){
+void * cpu_rebaseSP(uint16_t x){
+#ifdef DRZ80MEM_DEBUG
+	if(x & ~0xffff)
+		printf("Invalid rebaseSP: %08x\n", x);
+#endif
 	//printf("rebaseSP 0x%lx\n", x);
 	//ZCpu.Z80SP_BASE = (unsigned int)flash;
 	//ZCpu.Z80SP_BASE = (unsigned int)mmap_base_addr(x);
 	//if(ZCpu.Z80SP_BASE + (x & 0x3FFF) != flash + x) printf("sp %08x %p\n", ZCpu.Z80SP_BASE + (x & 0x3FFF), flash + x);
 	//return ZCpu.Z80SP_BASE + x;
-	return 0xe0000000 + (x & 0xffff);//=(x & 0x3FFF);
+	return Z80_MEM_BASE + (x & 0xffff);//=(x & 0x3FFF);
 } 
 
-unsigned short cpu_read16(uint32_t idx){
+unsigned short cpu_read16(uint16_t idx){
 	//asm(" b .");
 	//uint8_t *p = flash+idx;
 	//if(mmap_z80_to_arm(idx) != flash+idx) printf("read16 0x%x\n", idx);
-	uint8_t *p = 0xe0000000 + (idx & 0xffff);
-#ifdef MMU_DEBUG
+	uint8_t *p = Z80_MEM_BASE + (idx & 0xffff);
+#ifdef DRZ80MEM_DEBUG
 	if(idx & ~0xffff)
 		printf("Invalid read16: %p %04x\n", p, idx);
 #endif
@@ -276,11 +284,11 @@ unsigned short cpu_read16(uint32_t idx){
 	printf("read16 2.0 %p 0x%04x -> %02x %02x = 0x%04x\n", p, idx, p[1], p[0], val);*/
 	return val;
 }
-unsigned char cpu_read8(uint32_t idx){
+unsigned char cpu_read8(uint16_t idx){
 	//return flash[idx];
 	//if(mmap_z80_to_arm(idx) != flash+idx) printf("read8 0x%x\n", idx);
-	uint8_t *p = (uint8_t *)0xe0000000 + idx;//(idx & 0xffff);
-#ifdef MMU_DEBUG
+	uint8_t *p = Z80_MEM_BASE + idx;//(idx & 0xffff);
+#ifdef DRZ80MEM_DEBUG
 	if(idx & ~0xffff)
 		printf("Invalid read8: %p %04x\n", p, idx);
 #endif
@@ -289,13 +297,13 @@ unsigned char cpu_read8(uint32_t idx){
 	return val;
 }
 
-void cpu_write16(unsigned short val, uint32_t idx){
-	uint8_t *p = 0xe0000000 + (idx & 0xffff);
+void cpu_write16(unsigned short val, uint16_t idx){
+	uint8_t *p = Z80_MEM_BASE + (idx & 0xffff);
 #ifdef MEM16_DEBUG
 	printf("Wrt  %04x at %08x\n", val, p);
 #endif
 	//if(!((p >= flash && p < flash + FLASH_SIZE) || (p >= ram && p < ram + RAM_SIZE)))
-#ifdef MMU_DEBUG
+#ifdef DRZ80MEM_DEBUG
 	if(idx & ~0xffff) {
 		printf("Invalid write16: %p %04x\n", p, idx);
 		//cpu_trace();
@@ -308,10 +316,10 @@ void cpu_write16(unsigned short val, uint32_t idx){
 	p[1] = val >> 8;
 }
 
-void cpu_write8(unsigned char val, uint32_t idx){
-	uint8_t *p = 0xe0000000 + (idx & 0xffff);
+void cpu_write8(unsigned char val, uint16_t idx){
+	uint8_t *p = Z80_MEM_BASE + (idx & 0xffff);
 	//if(!((p >= flash && p < flash + FLASH_SIZE) || (p >= ram && p < ram + RAM_SIZE)))
-#ifdef MMU_DEBUG
+#ifdef DRZ80MEM_DEBUG
 	if(idx & ~0xffff)
 		printf("Invalid write8: %p %04x\n", p, idx);
 #endif
@@ -339,8 +347,8 @@ void cpu_out(unsigned short pn_, unsigned char val){
 	//register uint8_t *temp asm("r0");
 	//asm(" mov r0, r6");
 	//uint16_t zpc = temp - ZCpu.Z80PC_BASE;
+	if(port_debug) printf("Writing %02x to port %02x (%s)\n", val, p->number, p->name);
 	port_set(pn, p, val);
-	if(port_debug) printf("Wrote %02x to port %02x (%s)\n", val, p->number, p->name);
 	//temp = cpu_rebasePC(zpc);
 	//asm(" mov r6, r0"); // do not try this at home
 }

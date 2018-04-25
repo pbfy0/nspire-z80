@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include "cselcd.h"
 #include "cselcd_imp.h"
+#include <stdio.h>
 
 uint16_t port_idx = 0;
 uint8_t setting_idx = 0;
@@ -45,7 +46,7 @@ void cselcd_data_out(uint8_t val){
 		writing_data = 0;
 		unsigned v = (unsigned)data_write_hi << 8 | (unsigned)val;
 		cselcd_data_set(port_idx & 0xff, v);
-		if(port_idx & 0xff != 0x22) printf("%04x -> p%04x\n", v, port_idx);
+		//if(port_idx & 0xff != 0x22) printf("%04x -> p%04x\n", v, port_idx);
 	}else{
 		writing_data = 1;
 		data_write_hi = val;
@@ -60,7 +61,7 @@ uint8_t cselcd_data_in(){
 		return data_read_lo;
 	}else{
 		uint16_t t = cselcd_data_get(port_idx & 0xff);
-		if(port_idx & 0xff != 0x22) printf("%04x <- p%04x\n", t, port_idx);
+		//if(port_idx & 0xff != 0x22) printf("%04x <- p%04x\n", t, port_idx);
 		reading_data = 1;
 		data_read_lo = t & 0xff;
 		return t >> 8;

@@ -1,4 +1,7 @@
 #include <stdint.h>
+#include <stdio.h>
+
+#include "timer.h"
 
 #define TICKS 0xffff
 
@@ -51,26 +54,27 @@ void speedcontrol_before() {
 
 void speedcontrol_after(int cycs_elapsed) {
 	//cycs_elapsed += cycs;
-	unsigned v = timer1->value;
+	unsigned v = timer1->value & 0xffff;
 	uint32_t elapsed = TICKS - v;
 	int z80_32k_cycs = cycs_elapsed * 32768 / (cpu_freq_get() ? 15000000 : 6000000);
+	//printf("%u %d %ld\n", v, z80_32k_cycs, elapsed);
 	int new_cycs = z80_32k_cycs - elapsed;
 	
 	if(new_cycs > 0){
-		printf("elapsed=%d\n", elapsed);
-		printf("32k=%d\n", z80_32k_cycs);
-		printf("nc=%d\n", new_cycs);
+		//printf("elapsed=%ld\n", elapsed);
+		//printf("32k=%d\n", z80_32k_cycs);
+		//printf("nc=%d\n", new_cycs);
 		timer1->control = 0b00100001;
 		timer1->load = new_cycs;
 		timer1->control = 0b10100001;
-		puts("bb");
+		//puts("bb");
 		while(!timer_flag) {
 			asm volatile("mcr p15, 0, %0, c7, c0, 4\n\t" : : "r"(0)); // WFI
 		}
-		puts("cc");
+		//puts("cc");
 		timer1->control = 0;
 		timer_flag = 0;
-		puts("dd");
+		//puts("dd");
 	} else {
 		timer1->control = 0;
 	}

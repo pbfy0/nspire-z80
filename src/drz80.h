@@ -61,8 +61,8 @@ struct DrZ80
   void (*z80_out )(unsigned short p,unsigned char d);
   unsigned char (*z80_read8)(unsigned short a);
   unsigned short (*z80_read16)(unsigned short a);
-  unsigned int (*z80_rebaseSP)(unsigned short new_sp);
-  unsigned int (*z80_rebasePC)(unsigned short new_pc);
+  void * (*z80_rebaseSP)(unsigned short new_sp);
+  void * (*z80_rebasePC)(unsigned short new_pc);
   unsigned char Z80_NMI;
   void (*z80_trace)();
 };

@@ -37,6 +37,12 @@ uint16_t timer_cycles[2][4][3] = { // cpu speed, timer speed, timers enabled
 	}
 };
 
+int next_timer(){
+	int x = 32768/(64+(80*(ts.timer_freq))) * ts.timers_enabled;
+	return (ts.cpu_freq ? 15000000 : 6000000) / x;
+	//return timer_cycles[ts.cpu_freq][ts.timer_freq][ts.timers_enabled-1];// >> 2;
+}
+
 void timer_set_enabled(uint8_t mask){
 	int i;
 	uint8_t ote = ts.timers_enabled;
@@ -61,11 +67,6 @@ void timer_freq_set(uint8_t val){
 	ts.timer_freq = val;
 }
 
-int next_timer(){
-	int x = 32768/(64+(80*(ts.timer_freq))) * ts.timers_enabled;
-	return (ts.cpu_freq ? 15000000 : 6000000) / x;
-	//return timer_cycles[ts.cpu_freq][ts.timer_freq][ts.timers_enabled-1];// >> 2;
-}
 
 int timer_after(int elapsed){
 	//printf("E %d\n", elapsed);
@@ -82,7 +83,7 @@ int timer_after(int elapsed){
 		}
 	}
 	
-	int tst_left = 1000;//INT_MAX;
+	int tst_left = 10000;//INT_MAX;
 	for(i = 0; i < 2; i++){
 		struct hwtimer *t = &timers[i];
 		if(t->enabled && t->tstates_left < tst_left) tst_left = t->tstates_left;

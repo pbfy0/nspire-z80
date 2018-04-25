@@ -109,6 +109,7 @@ void savestate_load(char *savefn, char **romfn_p){
 	}
 	
 	//printf("Loaded dirty pages\n");
+	if(uses_hi_ram) puts("Uses high ram");
 	fread(ram, RAM_SIZE, 1, savefile);
 	//fseek(savefile, RAM_SIZE, SEEK_CUR);
 	
@@ -123,7 +124,7 @@ void savestate_load(char *savefn, char **romfn_p){
 	//printf("Loaded peripherals\n");
 	
 	//printf("zpc %04x\n", zpc);
-	ZCpu.Z80PC = cpu_rebasePC(zpc);
+	ZCpu.Z80PC = (uintptr_t)cpu_rebasePC(zpc);
 	//printf("rebased=%08x\n", ZCpu.Z80PC);
 	
 	fclose(savefile);

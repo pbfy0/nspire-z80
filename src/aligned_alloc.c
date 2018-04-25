@@ -10,7 +10,7 @@ aligned_ptr x_aligned_alloc(size_t extra, size_t s) {
 	if(__builtin_clz(extra) + __builtin_ctz(extra) != 31) return (aligned_ptr){ NULL, NULL };
 	//if(__builtin_popcount(extra) != 1) return (aligned_ptr){ NULL, NULL };
 	void *a = _malloc(s+extra);
-	void *al = (void *)((((intptr_t)a) | (extra-1)) + 1);
+	void *al = (void *)((((uintptr_t)a) | (extra-1)) + 1);
 	return (aligned_ptr){ .aligned = al, .raw = a };
 }
 

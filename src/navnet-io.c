@@ -8,7 +8,7 @@
 #define _REG(base, x) *((volatile uint32_t *)(base + x))
 #define VIC_REG(x) _REG(VIC_BASE, x)
 
-void **isr_addr = 0x38;
+void **isr_addr = (void **)0x38;
 void *real_isr;
 uint32_t os_ints_enabled;
 
