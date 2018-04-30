@@ -71,7 +71,7 @@ $(EXE).tns: $(EXE).elf
 .PHONY: deploy
 
 deploy: $(EXE).tns
-	NavNet_launcher.exe NavNet_upload.exe "$(shell readlink -f $(EXE).tns | sed -e 's|/mnt/\(.\)/|\U\1:\\|' -e 's|/|\\|g')" "$(DEPLOY_DIR)$(EXE).tns"
+	NavNet_launcher.exe NavNet_upload.exe "$(shell wslpath -w $(EXE).tns)" $(EXE).tns
 
 clean:
 	rm -f $(patsubst $(SRC_DIR)/%,$(DISTDIR)/%, $(OBJS)) $(EXE).tns $(EXE).elf $(EXE).tns.zehn

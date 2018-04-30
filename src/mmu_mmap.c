@@ -189,7 +189,7 @@ static void map_in(int idx, void *base, bool ro) {
 
 	// clear TLB for newly-mapped page
 	for(i = 0; i < 16; i++) {
-		invalidate_tlb(mb + i * 0x400);
+		invalidate_tlb(mb + i * 0x100);
 	}
 }
 
