@@ -125,18 +125,35 @@ unsigned wr_overflow = 0;
 
 static void fb_setup(uint8_t *buf) {
 	int x, y, i = 0;
-	for(y = 0; y < 240; y++) {
-		for(x = 0; x < 320; x++) { 
-			if(y > C_YO && y < (240 - C_YO) && x == C_XO) {
-				memset(buf+i, 0, 96*3);
-				i += 96*3;
-				x += 96*3;
+	if(is_hww) {
+		for(y = 0; y < 320; y++) {
+			for(x = 0; x < 240; x++) {
+				if(y > C_XO && y < (320 - C_XO) && x == C_YO) {
+					memset(buf+i, 0, 64*3);
+					i += 64*3;
+					x += 64*3;
+				}
+				buf[i++] = ((x & 1) ^ (y & 1)) + 4 +
+					(
+						(x >= 2 && x < 22 && y >= C_XO && y < (C_XO+20) &&
+							(power_btn[x-2][(y-C_XO) >> 3] & 1<<(7-((y-C_XO)&7)))) ? 2 : 0
+					);
 			}
-			buf[i++] = ((x & 1) ^ (y & 1)) + 4 +
-				(
-					(y >= 2 && y < 22 && x >= C_XO && x < (C_XO+20) &&
-						(power_btn[y-2][(x-C_XO) >> 3] & 1<<(7-((x-C_XO)&7)))) ? 2 : 0
-				);
+		}
+	} else {
+		for(y = 0; y < 240; y++) {
+			for(x = 0; x < 320; x++) {
+				if(y > C_YO && y < (240 - C_YO) && x == C_XO) {
+					memset(buf+i, 0, 96*3);
+					i += 96*3;
+					x += 96*3;
+				}
+				buf[i++] = ((x & 1) ^ (y & 1)) + 4 +
+					(
+						(y >= 2 && y < 22 && x >= C_XO && x < (C_XO+20) &&
+							(power_btn[y-2][(x-C_XO) >> 3] & 1<<(7-((x-C_XO)&7)))) ? 2 : 0
+					);
+			}
 		}
 	}
 }
@@ -145,6 +162,7 @@ static uint32_t b_lcd_control;
 
 void m_lcd_init(){
 	is_hww = nl_ndless_rev() >= 2004 && _lcd_type() == SCR_240x320_565;
+	printf("is_hww=%d\n", is_hww);
 	lcd_control = IO_LCD_CONTROL;
 	
 	
@@ -249,20 +267,32 @@ asm(
 );
 }
 
+static uint8_t extra_screen[64][(120-96)/8];
+
 static void n_set_84_pixel(int x, int y, uint8_t gray, uint8_t *buf){
 	correct_setpixel(x*3, y*3, gray, (uint32_t)buf + c_offset);
 }
 
 static uint8_t get_pixel(int x, int y){
-	//printf("gp %d %d\n", x, y);
+	//printf("gp %d %d %d %d\n", x, y, c_offset, xy_to_fbo(x*3,y*3));
+	if(x >= 96) {
+		return (extra_screen[y][(x-96)/8] >> (x&7)) & 1;
+	}
 	return back_buffer.virt[c_offset + xy_to_fbo(x*3, y*3)] && 1;
 }
 
 static void set_pixel(int x, int y, uint8_t val, uint8_t *buf){
 	//printf("set_pixel %d %d %d\n", x, y, val);
 	unsigned vv = val ? 1 : 0;
-	if(get_pixel(x, y) == vv) return;
-	if(y < 64 && x < 96) {
+	if(x >= 96) {
+		uint8_t *c = &extra_screen[y][(x-96)/8];
+		if(vv)
+			*c = *c & ~(1<<(x&7));
+		else
+			*c = *c | (1<<(x&7));
+	}
+	else if(y < 64) { // && x < 96) {
+		if(get_pixel(x, y) == vv) return;
 		n_set_84_pixel(x, y, vv, buf);
 #ifdef LCD_DOUBLE_BUFFER
 		if(write_idx == sizeof(write_buffer) / sizeof(write_buffer[0])) {
