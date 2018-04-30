@@ -171,11 +171,14 @@ static void map_in(int idx, void *base, bool ro) {
 	uint32_t *mb = (uint32_t *)(Z80_MEM_BASE + idx * 0x4000);
 	
 	// flush cached entries from old mapping to RAM
-	//int j;
-	//for(j = 0; j < 0x4000; j += 8) {
-	//	clean_inval_dcache(mb + j);
-	//}
+#ifndef EMU_BUILD
+	int j;
+	for(j = 0; j < 0x4000; j += 8) {
+		clean_inval_dcache(mb + j);
+	}
+#else
 	clean_inval_dcache_all();
+#endif
 	
 	for(i = 0; i < 4; i++) {
 		uint32_t v = (b2 + 0x1000 * i) | 0b1110 | (ro ? 0 : 0xff0);
