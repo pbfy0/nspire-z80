@@ -8,13 +8,21 @@
 struct lcd_state {
 	int cur_row;
 	int cur_col;
-	int row_offset;
+	unsigned flags;
 	int n_bits;
 	uint8_t auto_mode;
 	uint8_t enabled;
 	uint8_t lcd_read_reg;
 	uint8_t contrast;
 };
+
+/*struct lcd_state_ex {
+	struct lcd_state;
+	union {
+		unsigned _ex_start;
+		int row_offset;
+	};
+};*/
 
 static const unsigned char power_btn[20][3] = {
 	{0x00,0x60,0x00},
@@ -39,7 +47,7 @@ static const unsigned char power_btn[20][3] = {
 	{0x01,0xf8,0x00}
 };
 
-struct lcd_state ls = { 0, 0, 0, 8, AUTO_DOWN, TRUE, 0, 0 };
+struct lcd_state ls = { 0, 0, 1, 8, AUTO_DOWN, TRUE, 0, 0 };
 //uint8_t video_mem[120*64/8];
 
 void *os_framebuffer;
@@ -287,9 +295,9 @@ static void set_pixel(int x, int y, uint8_t val, uint8_t *buf){
 	if(x >= 96) {
 		uint8_t *c = &extra_screen[y][(x-96)/8];
 		if(vv)
-			*c = *c & ~(1<<(x&7));
+			*c |= (1<<(x&7));
 		else
-			*c = *c | (1<<(x&7));
+			*c &= ~(1<<(x&7));
 	}
 	else if(y < 64) { // && x < 96) {
 		if(get_pixel(x, y) == vv) return;
@@ -480,7 +488,10 @@ uint8_t lcd_data_read() {
 }
 
 void lcd_save(FILE *f){
+	ls.flags |= 1;
 	FWRITE_VALUE(ls, f);
+	FWRITE_VALUE(extra_screen, f);
+	
 	int y;
 	int j = 0;
 	uint8_t *b = malloc(768);
@@ -502,6 +513,11 @@ void lcd_save(FILE *f){
 
 void lcd_restore(FILE *f){
 	FREAD_VALUE(&ls, f);
+	if(ls.flags & 1) {
+//		fread(&ls._ex_start, sizeof(struct lcd_state_ex)-sizeof(struct lcd_state), 1, f);
+		FREAD_VALUE(&extra_screen, f);
+	}
+	
 	uint8_t *b = malloc(768);
 	fread(b, 768, 1, f);
 	uint8_t *p = b;

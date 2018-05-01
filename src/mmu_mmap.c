@@ -134,7 +134,7 @@ unsigned uses_hi_ram = 0;
 static void *RAM_PAGE(unsigned x) {
 	void *b = mem_base + FLASH_SIZE + (0x4000 * x);
 #ifdef MMU_DEBUG
-	if((uintptr_t)b - (uintptr_t)mem_base > FLASH_SIZE + RAM_SIZE) printf("illegal start of ram page %02x %p - b=%p!\n", x, b, mem_base);
+	if((uintptr_t)b - (uintptr_t)mem_base >= FLASH_SIZE + RAM_SIZE) printf("illegal start of ram page %02x %p - b=%p!\n", x, b, mem_base);
 	if((uintptr_t)b - (uintptr_t)mem_base + 0x4000 > FLASH_SIZE + RAM_SIZE) printf("illegal end of ram page %02x %p - b=%p!\n", x, b, mem_base);
 #endif
 	return b;
@@ -142,7 +142,7 @@ static void *RAM_PAGE(unsigned x) {
 static void *ROM_PAGE(unsigned x) {
 	void *b = mem_base + (0x4000 * x);
 #ifdef MMU_DEBUG
-	if((uintptr_t)b - (uintptr_t)mem_base > FLASH_SIZE + RAM_SIZE) printf("illegal start of rom page %02x %p - b=%p!\n", x, b, mem_base);
+	if((uintptr_t)b - (uintptr_t)mem_base >= FLASH_SIZE + RAM_SIZE) printf("illegal start of rom page %02x %p - b=%p!\n", x, b, mem_base);
 	if((uintptr_t)b - (uintptr_t)mem_base + 0x4000 > FLASH_SIZE + RAM_SIZE) printf("illegal end of rom page %02x %p - b=%p!\n", x, b, mem_base);
 #endif
 	return b;
