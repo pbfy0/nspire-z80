@@ -485,8 +485,8 @@ void mmap_restore(FILE *f) {
 	mmu_mode = fgetc(f);
 	FREAD_VALUE(&banks, f);
 	mmu_port5_update();
-	mmu_port67_update(0);
 	mmu_port67_update(1);
+	mmu_port67_update(2);
 	normal = fgetc(f);
 	if(normal) map_in(0, ROM_PAGE(0), 1);
 }

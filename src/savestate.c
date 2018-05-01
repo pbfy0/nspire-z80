@@ -21,6 +21,7 @@ void savestate_save(char *romfn){
 	//printf("Saving to %s\n", savefn);
 	FILE *savefile = fopen(savefn, "wb");
 	printf("PC=%08x, rel=%08x\n", ZCpu.Z80PC, ZCpu.Z80PC - ZCpu.Z80PC_BASE);
+	if(uses_hi_ram) puts("Uses high ram");
 	ZCpu.Z80PC -= ZCpu.Z80PC_BASE;
 	fwrite(&ZCpu, sizeof(struct DrZ80Regs), 1, savefile);
 	ZCpu.Z80PC += ZCpu.Z80PC_BASE;
@@ -109,7 +110,6 @@ void savestate_load(char *savefn, char **romfn_p){
 	}
 	
 	//printf("Loaded dirty pages\n");
-	if(uses_hi_ram) puts("Uses high ram");
 	fread(ram, RAM_SIZE, 1, savefile);
 	//fseek(savefile, RAM_SIZE, SEEK_CUR);
 	
