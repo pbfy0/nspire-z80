@@ -136,7 +136,7 @@ static void fb_setup(uint8_t *buf) {
 	if(is_hww) {
 		for(y = 0; y < 320; y++) {
 			for(x = 0; x < 240; x++) {
-				if(y > C_XO && y < (320 - C_XO) && x == C_YO) {
+				if(y >= C_XO && y < (320 - C_XO) && x == C_YO) {
 					memset(buf+i, 0, 64*3);
 					i += 64*3;
 					x += 64*3;
@@ -151,7 +151,7 @@ static void fb_setup(uint8_t *buf) {
 	} else {
 		for(y = 0; y < 240; y++) {
 			for(x = 0; x < 320; x++) {
-				if(y > C_YO && y < (240 - C_YO) && x == C_XO) {
+				if(y >= C_YO && y < (240 - C_YO) && x == C_XO) {
 					memset(buf+i, 0, 96*3);
 					i += 96*3;
 					x += 96*3;
