@@ -105,12 +105,6 @@ static uint16_t pack_gry(uint8_t v) {
 	v >>= 3;
 	return v | (v << 5) | (v << 10) | (z << 15);
 }
-__attribute__((naked)) uint8_t get_lcd_type() {
-asm(
-"	swi #0x20000e\n"
-"	bx lr\n"
-);
-}
 
 typedef void (*n_set_84_pixel_t)(int x, int y, uint8_t gray, uint32_t fb_a);
 
@@ -144,7 +138,7 @@ static void fb_setup(uint8_t *buf) {
 				buf[i++] = ((x & 1) ^ (y & 1)) + 4 +
 					(
 						(x >= 2 && x < 22 && y >= C_XO && y < (C_XO+20) &&
-							(power_btn[x-2][(y-C_XO) >> 3] & 1<<(7-((y-C_XO)&7)))) ? 2 : 0
+						(power_btn[x-2][(y-C_XO) >> 3] & 1<<(7-((y-C_XO)&7)))) ? 2 : 0
 					);
 			}
 		}
@@ -159,7 +153,7 @@ static void fb_setup(uint8_t *buf) {
 				buf[i++] = ((x & 1) ^ (y & 1)) + 4 +
 					(
 						(y >= 2 && y < 22 && x >= C_XO && x < (C_XO+20) &&
-							(power_btn[y-2][(x-C_XO) >> 3] & 1<<(7-((x-C_XO)&7)))) ? 2 : 0
+						(power_btn[y-2][(x-C_XO) >> 3] & 1<<(7-((x-C_XO)&7)))) ? 2 : 0
 					);
 			}
 		}
@@ -225,15 +219,6 @@ void lcd_end(){
 	x_aligned_free(framebuffer_a);
 	//x_aligned_free(framebuffer_b);
 }
-asm(
-"\n"
-".align 2\n"
-"px_offsets:\n\t"
-	".hword 0, 1, 2, 320, 321, 322, 640, 641, 642\n\t"
-"px_offsets_hww:\n\t"
-	".hword 0, 1, 2, 240, 241, 242, 480, 481, 482\n\t"
-);
-
 
 __attribute__((naked)) void _n_set_84_pixel(int x, int y, uint8_t gray, uint32_t fb_a) {
 	(void)x;
@@ -241,19 +226,30 @@ __attribute__((naked)) void _n_set_84_pixel(int x, int y, uint8_t gray, uint32_t
 	(void)gray;
 	(void)fb_a;
 asm(
-"	push {r4, lr}\n"
-"	mov r4, #320\n"
-"	mla r3, r1, r4, r3\n"
-"	add r3, r0\n"
-"	adr r4, px_offsets\n"
-"	mov r0, #18\n"
-"1:	subs r0, #2\n"
-"	ldrh r1, [r4, r0]\n"
-"	strb r2, [r3, r1]\n"
+"	add r0, r3\n"
+"	mov r3, #320\n"
+"	mla r0, r1, r3, r0\n"
+"	mov r1, #3\n"
+"1:	subs r1, #1\n"
+"	strb r2, [r0, #0]\n"
+"	strb r2, [r0, #1]\n"
+"	strb r2, [r0, #2]\n"
+"	add r0, #320\n"
 "	bne 1b\n"
-"	pop {r4, pc}\n"
+"	bx lr\n"
 );
 }
+
+/*void _n_set_84_pixel(uint8_t *x, int y, uint8_t gray, uint32_t fb_a) {
+	x += fb_a;
+	x += y * 320;
+	for(y = 3; y; y--) {
+		x[0] = gray;
+		x[1] = gray;
+		x[2] = gray;
+		x += 320;
+	}
+}*/
 
 __attribute__((naked)) void _n_set_84_pixel_hww(int x, int y, uint8_t gray, uint32_t fb_a) {
 	(void)x;
@@ -261,17 +257,17 @@ __attribute__((naked)) void _n_set_84_pixel_hww(int x, int y, uint8_t gray, uint
 	(void)gray;
 	(void)fb_a;
 asm(
-"	push {r4, lr}\n"
-"	mov r4, #240\n"
-"	mla r3, r0, r4, r3\n"
-"	add r3, r1\n"
-"	adr r4, px_offsets_hww\n"
-"	mov r0, #18\n"
-"1:	subs r0, #2\n"
-"	ldrh r1, [r4, r0]\n"
-"	strb r2, [r3, r1]\n"
+"	add r1, r3\n"
+"	mov r3, #240\n"
+"	mla r1, r0, r3, r1\n"
+"	mov r0, #3\n"
+"1:	subs r0, #1\n"
+"	strb r2, [r1, #0]\n"
+"	strb r2, [r1, #1]\n"
+"	strb r2, [r1, #2]\n"
+"	add r1, #240\n"
 "	bne 1b\n"
-"	pop {r4, pc}\n"
+"	bx lr\n"
 );
 }
 
@@ -291,15 +287,15 @@ static uint8_t get_pixel(int x, int y){
 
 static void set_pixel(int x, int y, uint8_t val, uint8_t *buf){
 	//printf("set_pixel %d %d %d\n", x, y, val);
-	unsigned vv = val ? 1 : 0;
+	if(y >= 64) return;
 	if(x >= 96) {
 		uint8_t *c = &extra_screen[y][(x-96)/8];
-		if(vv)
+		if(val)
 			*c |= (1<<(x&7));
 		else
 			*c &= ~(1<<(x&7));
-	}
-	else if(y < 64) { // && x < 96) {
+	} else {
+		unsigned vv = val ? 1 : 0;
 		if(get_pixel(x, y) == vv) return;
 		n_set_84_pixel(x, y, vv, buf);
 #ifdef LCD_DOUBLE_BUFFER
@@ -451,7 +447,7 @@ void lcd_data(uint8_t data){
 	irq_disable();
 #endif
 	for(i = 0; i < ls.n_bits; i++){
-		set_pixel(x + i, y & 0x3f, data & (1<<(ls.n_bits-1-i)), back_buffer.virt);
+		set_pixel(x + i, y, data & (1<<(ls.n_bits-1-i)), back_buffer.virt);
 	}
 #ifdef LCD_DOUBLE_BUFFER
 	irq_enable();
