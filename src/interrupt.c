@@ -104,9 +104,9 @@ void __attribute__((interrupt("IRQ"))) irq_handler(){
 static void irq_enable(){
 	unsigned dummy;
 	__asm__ volatile(
-		" mrs r0, cpsr\n"
-		" bic r0, r0, #0x80\n"
-		" msr cpsr_c, r0\n" : "=r"(dummy)
+		" mrs %0, cpsr\n"
+		" bic %0, %0, #0x80\n"
+		" msr cpsr_c, %0\n" : "=r"(dummy)
 	);
 }
 
