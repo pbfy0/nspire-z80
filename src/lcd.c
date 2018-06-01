@@ -106,10 +106,10 @@ static uint16_t pack_gry(uint8_t v) {
 	return v | (v << 5) | (v << 10) | (z << 15);
 }
 
-typedef void (*n_set_84_pixel_t)(int x, int y, uint8_t gray, uint32_t fb_a);
+typedef void (*n_set_84_pixel_t)(int x, int y, uint8_t gray, uint8_t *fb_a);
 
-void _n_set_84_pixel(int x, int y, uint8_t gray, uint32_t fb_a);
-void _n_set_84_pixel_hww(int x, int y, uint8_t gray, uint32_t fb_a);
+void _n_set_84_pixel(int x, int y, uint8_t gray, uint8_t *fb_a);
+void _n_set_84_pixel_hww(int x, int y, uint8_t gray, uint8_t *fb_a);
 
 n_set_84_pixel_t correct_setpixel;
 
@@ -220,15 +220,16 @@ void lcd_end(){
 	//x_aligned_free(framebuffer_b);
 }
 
-__attribute__((naked)) void _n_set_84_pixel(int x, int y, uint8_t gray, uint32_t fb_a) {
+__attribute__((naked)) void _n_set_84_pixel(int x, int y, uint8_t gray, uint8_t *fb_a) {
 	(void)x;
 	(void)y;
 	(void)gray;
 	(void)fb_a;
 asm(
+"	add r1, r1, r1, lsl #2\n"
+"	add r0, r0, r1, lsl #6\n"
+"	add r0, r0, r0, lsl #1\n"
 "	add r0, r3\n"
-"	mov r3, #320\n"
-"	mla r0, r1, r3, r0\n"
 "	mov r1, #3\n"
 "1:	subs r1, #1\n"
 "	strb r2, [r0, #0]\n"
@@ -240,41 +241,54 @@ asm(
 );
 }
 
-/*void _n_set_84_pixel(uint8_t *x, int y, uint8_t gray, uint32_t fb_a) {
-	x += fb_a;
+/*void _n_set_84_pixel(int x, int y, uint8_t gray, uint8_t * fb_a) {
 	x += y * 320;
+	fb_a += x * 3;
 	for(y = 3; y; y--) {
-		x[0] = gray;
-		x[1] = gray;
-		x[2] = gray;
-		x += 320;
+		fb_a[0] = gray;
+		fb_a[1] = gray;
+		fb_a[2] = gray;
+		fb_a += 320;
 	}
 }*/
 
-__attribute__((naked)) void _n_set_84_pixel_hww(int x, int y, uint8_t gray, uint32_t fb_a) {
+__attribute__((naked)) void _n_set_84_pixel_hww(int x, int y, uint8_t gray, uint8_t *fb_a) {
 	(void)x;
 	(void)y;
 	(void)gray;
 	(void)fb_a;
 asm(
-"	add r1, r3\n"
-"	mov r3, #240\n"
-"	mla r1, r0, r3, r1\n"
-"	mov r0, #3\n"
-"1:	subs r0, #1\n"
-"	strb r2, [r1, #0]\n"
-"	strb r2, [r1, #1]\n"
-"	strb r2, [r1, #2]\n"
-"	add r1, #240\n"
+"	rsb r0, r0, r0, lsl #4\n"
+"	add r0, r1, r0, lsl #4\n"
+"	add r0, r0, r0, lsl #1\n"
+"	add r0, r3\n"
+"	mov r1, #3\n"
+"1:	subs r1, #1\n"
+"	strb r2, [r0, #0]\n"
+"	strb r2, [r0, #1]\n"
+"	strb r2, [r0, #2]\n"
+"	add r0, #240\n"
 "	bne 1b\n"
 "	bx lr\n"
 );
 }
 
+/*void _n_set_84_pixel_hww(int x, int y, uint8_t gray, uint8_t * fb_a) {
+	y += x * 240;
+	fb_a += y * 3;
+	for(x = 3; x; x--) {
+		fb_a[0] = gray;
+		fb_a[1] = gray;
+		fb_a[2] = gray;
+		fb_a += 240;
+	}
+}*/
+
+
 static uint8_t extra_screen[64][(120-96)/8];
 
 static void n_set_84_pixel(int x, int y, uint8_t gray, uint8_t *buf){
-	correct_setpixel(x*3, y*3, gray, (uint32_t)buf + c_offset);
+	correct_setpixel(x, y, gray, buf + c_offset);
 }
 
 static uint8_t get_pixel(int x, int y){
@@ -423,9 +437,9 @@ void lcd_auto_move(){
 static void irq_enable(){
 	unsigned dummy;
 	__asm__ volatile(
-		" mrs r0, cpsr\n"
-		" bic r0, r0, #0x80\n"
-		" msr cpsr_c, r0\n" : "+r"(dummy)
+		" mrs %0, cpsr\n"
+		" bic %0, %0, #0x80\n"
+		" msr cpsr_c, %0\n" : "+r"(dummy)
 	);
 }
 
