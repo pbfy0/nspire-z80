@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "calctype.h"
+
 void mmu_port67_out(uint8_t val, uint8_t port);
 void mmu_port5_out(uint8_t val);
 uint8_t mmap_in(uint8_t port);
@@ -28,10 +30,4 @@ extern unsigned uses_hi_ram;
 #define I_Z80_MEM_BASE 0xe0000000
 #define Z80_MEM_BASE ((uint8_t *)I_Z80_MEM_BASE)
 
-#ifdef USE_CSE
-#define FLASH_SIZE 0x400000
-#else
-#define FLASH_SIZE 0x200000
-#endif
-#define RAM_SIZE 0x20000
 #endif

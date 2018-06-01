@@ -1,4 +1,5 @@
 #include <os.h>
+#include "calctype.h"
 #define STATUS_BATTERIES 1<<0
 #define STATUS_LCD_WAIT 1<<1
 #define STATUS_FLASH_UNLOCK 1<<2
@@ -28,11 +29,12 @@ struct io_state {
 	uint8_t usb_event_mask;
 };
 
-#ifdef USE_CSE
+/*#if CALC_TYPE == CALC_84PCSE
 #define I_FLASH_SIZE 2
 #else
 #define I_FLASH_SIZE 1
-#endif
+#endif*/
+#define I_FLASH_SIZE CALC_TYPE
 
 struct io_state is = {I_FLASH_SIZE | 2<<4, 0, 0, 0};
 
@@ -89,7 +91,7 @@ void io_init(){
 #ifdef NO_LCD
 	ports[0x10].const_val = 0;
 #else
-#ifndef USE_CSE
+#if CALC_TYPE != CALC_84PCSE
 	ports[0x10].in.r = lcd_cmd_read;
 	ports[0x10].out.r = lcd_cmd;
 #else
@@ -103,7 +105,7 @@ void io_init(){
 #ifdef NO_LCD
 	ports[0x11].const_val = 0;
 #else
-#ifndef USE_CSE
+#if CALC_TYPE != CALC_84PCSE
 	ports[0x11].in.r = lcd_data_read;
 	ports[0x11].out.r = lcd_data;
 #else

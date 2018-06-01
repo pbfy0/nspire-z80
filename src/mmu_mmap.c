@@ -8,16 +8,6 @@
 #include "aligned_alloc.h"
 #include "lcd.h"
 
-#ifdef USE_CSE
-#define FLASH_SIZE 0x400000
-#define BOOT_PAGE 0xff
-#define EF_MASK 1
-#else
-#define FLASH_SIZE 0x200000
-#define BOOT_PAGE 0x7f
-#define EF_MASK 0
-#endif
-
 #define RAM_SIZE 0x20000
 #define PAGE_SIZE 0x4000
 #define FLASH_PAGES (FLASH_SIZE / PAGE_SIZE)
@@ -305,26 +295,19 @@ void mmu_test() {
 void __attribute__((interrupt("ABORT"), naked)) abort_handler(){
 	asm volatile(
 	"push {r0, r1, r2}\n" // r2 is placeholder
-"	mov r0, #1\n"
 "	mrc p15, 0, r0, c6, c0, 0\n"
 "	subs r0,  #" SF(I_Z80_MEM_BASE) "\n"
-"	movge r1, #0x10000\n"
-"	cmpge r1, r0\n"
+"	rsbges r0, r0, #0x10000\n"
 "	popge {r0, r1, r2}\n"
 "	subges pc, lr, #4\n"
-"	adr r0, 1f\n"
-"	ldr r1, [r0]\n"
-"	add r0, r0, r1\n"
-//"	ldr r0, =o_dah\n"
-//"	ldr r0, o_dah\n"
-"	ldr r0, [r0]\n"
+"	ldr r0, o_dah\n"
 "	str r0, [sp, #8]\n"
 "	pop {r0, r1, pc}\n"
-"1:	.word o_dah-.\n"
+"o_dah: .word 0\n"
 	);
 }
 
-void (*o_dah)(void);
+extern void (*o_dah)(void);
 
 //typedef volatile void * vvptr;
 
@@ -333,8 +316,6 @@ void mprotect_init() {
 	o_dah = ivt[4];
 	//printf("o_dah = %08x\n", o_dah);
 	ivt[4] = abort_handler;
-	
-	//*(uint32_t *)0xf0000000 = 0xffffffff;
 }
 
 void mprotect_end() {
@@ -399,6 +380,7 @@ void mmu_init() {
 	mmu_port67_out(0, 7);
 	//asm("	bkpt #0\n");
 	//*(uint32_t *)0xe0000000 = 0x12345678;
+	//*(volatile uint32_t *)0xef000000 = 0xffffffff;
 }
 
 

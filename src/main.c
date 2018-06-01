@@ -67,6 +67,7 @@ int main(int argc, char **argv){
 	g_stream = navnet_io_init();
 #endif
 	printf("main = %p\n", main);
+	if(isKeyPressed(KEY_NSPIRE_0)) return 1;
 	
 	if(argc == 1){
 		//cfg_register_fileext("8lnk", "nspire-z80");
@@ -79,7 +80,7 @@ int main(int argc, char **argv){
 	mmu_init();
 	printf("mmu_init done\n");
 #ifndef NO_LCD
-#ifdef USE_CSE
+#if CALC_TYPE == CALC_84PCSE
 	cselcd_init();
 #else
 	m_lcd_init();
@@ -174,7 +175,7 @@ int main(int argc, char **argv){
 		savestate_save(argv[1]);
 	}
 #ifndef NO_LCD
-#ifdef USE_CSE
+#if CALC_TYPE == CALC_84PCSE
 	cselcd_end();
 #else
 	lcd_end();
