@@ -267,13 +267,13 @@ DrZ80Ver: .long 0x0001
 
 .macro opAND reg shift
 	and z80a,z80a,\reg,lsl#\shift
-	sub r0,opcodes,#0x100
+	get_pzs r0
 	ldrb z80f,[r0,z80a, lsr #24]
 	orr z80f,z80f,#1<<HFlag
 .endm
 
 .macro opANDA
-	sub r0,opcodes,#0x100
+	get_pzs r0
 	ldrb z80f,[r0,z80a, lsr #24]
 	orr z80f,z80f,#1<<HFlag
 	fetch 4
@@ -450,12 +450,12 @@ DrZ80Ver: .long 0x0001
 
 .macro opOR reg shift
 	orr z80a,z80a,\reg,lsl#\shift
-	sub r0,opcodes,#0x100
+	get_pzs r0
 	ldrb z80f,[r0,z80a, lsr #24]
 .endm
 
 .macro opORA
-	sub r0,opcodes,#0x100
+	get_pzs r0
 	ldrb z80f,[r0,z80a, lsr #24]
 	fetch 4
 .endm
@@ -603,7 +603,7 @@ DrZ80Ver: .long 0x0001
 	orrne \reg1,\reg1,#0x01000000
 ;@	and r2,z80f,#1<<CFlag
 ;@	orr $x,$x,r2,lsl#23
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb z80f,[r1,\reg1,lsr#24]				;@get PZS
 	orrcs z80f,z80f,#1<<CFlag
 .endm
@@ -618,7 +618,7 @@ DrZ80Ver: .long 0x0001
 	adds \reg,\reg,r0
 	tst z80f,#1<<CFlag						;@doesn't affect ARM carry, as long as the imidiate value is < 0x100. Watch out!
 	orrne \reg,\reg,#0x01000000
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb z80f,[r1,\reg,lsr#24]				;@get PZS
 	orrcs z80f,z80f,#1<<CFlag
 	fetch 8
@@ -640,7 +640,7 @@ DrZ80Ver: .long 0x0001
 .macro opRLC reg1 reg2 shift
 	movs \reg1,\reg2,lsl#\shift
 	orrcs \reg1,\reg1,#0x01000000
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb z80f,[r1,\reg1,lsr#24]
 	orrcs z80f,z80f,#1<<CFlag
 .endm
@@ -654,7 +654,7 @@ DrZ80Ver: .long 0x0001
 	and r0,\reg,#0xFF000000					;@mask high to r0
 	adds \reg,\reg,r0
 	orrcs \reg,\reg,#0x01000000
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb z80f,[r1,\reg,lsr#24]
 	orrcs z80f,z80f,#1<<CFlag
 	fetch 8
@@ -679,7 +679,7 @@ DrZ80Ver: .long 0x0001
 	orrne \reg1,\reg1,#0x00000080
 ;@	and r2,z80_f,#PSR_C
 ;@	orr \reg1,\reg1,r2,lsl#6
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb z80f,[r1,\reg1]
 	orrcs z80f,z80f,#1<<CFlag
 .endm
@@ -688,7 +688,7 @@ DrZ80Ver: .long 0x0001
 	orr z80a,z80a,z80f,lsr#1				;@get C
 	movs z80a,z80a,ror#25
 	mov z80a,z80a,lsl#24
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb z80f,[r1,z80a,lsr#24]
 	orrcs z80f,z80f,#1<<CFlag
 	fetch 8
@@ -699,7 +699,7 @@ DrZ80Ver: .long 0x0001
 	movs r0,r0,ror#25
 	and \reg,\reg,#0x00FF0000				;@mask out low
 	orr \reg,\reg,r0,lsl#24
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb z80f,[r1,\reg,lsr#24]
 	orrcs z80f,z80f,#1<<CFlag
 	fetch 8
@@ -721,7 +721,7 @@ DrZ80Ver: .long 0x0001
 .macro opRRC reg1 reg2 shift
 	movs \reg1,\reg2,lsr#\shift
 	orrcs \reg1,\reg1,#0x00000080
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb z80f,[r1,\reg1]
 	orrcs z80f,z80f,#1<<CFlag
 .endm
@@ -878,7 +878,7 @@ DrZ80Ver: .long 0x0001
 
 .macro opSLA reg1 reg2 shift
 	movs \reg1,\reg2,lsl#\shift
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb z80f,[r1,\reg1,lsr#24]
 	orrcs z80f,z80f,#1<<CFlag
 .endm
@@ -891,7 +891,7 @@ DrZ80Ver: .long 0x0001
 .macro opSLAH reg
 	and r0,\reg,#0xFF000000					;@mask high to r0
 	adds \reg,\reg,r0
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb z80f,[r1,\reg,lsr#24]
 	orrcs z80f,z80f,#1<<CFlag
 	fetch 8
@@ -913,7 +913,7 @@ DrZ80Ver: .long 0x0001
 .macro opSLL reg1 reg2 shift
 	movs \reg1,\reg2,lsl#\shift
 	orr \reg1,\reg1,#0x01000000
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb z80f,[r1,\reg1,lsr#24]
 	orrcs z80f,z80f,#1<<CFlag
 .endm
@@ -927,7 +927,7 @@ DrZ80Ver: .long 0x0001
 	and r0,\reg,#0xFF000000					;@mask high to r0
 	adds \reg,\reg,r0
 	orr \reg,\reg,#0x01000000
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb z80f,[r1,\reg,lsr#24]
 	orrcs z80f,z80f,#1<<CFlag
 	fetch 8
@@ -949,7 +949,7 @@ DrZ80Ver: .long 0x0001
 .macro opSRA reg1 reg2
 	movs \reg1,\reg2,asr#25
 	and \reg1,\reg1,#0xFF
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb z80f,[r1,\reg1]
 	orrcs z80f,z80f,#1<<CFlag
 .endm
@@ -957,7 +957,7 @@ DrZ80Ver: .long 0x0001
 .macro opSRAA
 	movs r0,z80a,asr#25
 	mov z80a,r0,lsl#24
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb z80f,[r1,z80a,lsr#24]
 	orrcs z80f,z80f,#1<<CFlag
 	fetch 8
@@ -967,7 +967,7 @@ DrZ80Ver: .long 0x0001
 	movs r0,\reg,asr#25
 	and \reg,\reg,#0x00FF0000				;@mask out low
 	orr \reg,\reg,r0,lsl#24
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb z80f,[r1,\reg,lsr#24]
 	orrcs z80f,z80f,#1<<CFlag
 	fetch 8
@@ -985,11 +985,24 @@ DrZ80Ver: .long 0x0001
 	mov r0,r0,lsl#24
 	opSRA r0 r0
 .endm
+
+.macro get_pzs reg
+	sub \reg, opcodes, #(MAIN_opcodes - PZSTable_data)
+.endm
+
+.macro get_af_arm reg
+	sub \reg, opcodes, #(MAIN_opcodes - AF_ARM)
+.endm
+
+.macro get_af_z80 reg
+	sub \reg, opcodes, #(MAIN_opcodes - AF_Z80)
+.endm
+
 ;@---------------------------------------
 
 .macro opSRL reg1 reg2 shift
 	movs \reg1,\reg2,lsr#\shift
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb z80f,[r1,\reg1]
 	orrcs z80f,z80f,#1<<CFlag
 .endm
@@ -1054,7 +1067,7 @@ DrZ80Ver: .long 0x0001
 
 .macro opXOR reg shift
 	eor z80a,z80a,\reg,lsl#\shift
-	sub r0,opcodes,#0x100
+	get_pzs r0
 	ldrb z80f,[r0,z80a, lsr #24]
 .endm
 
@@ -5403,7 +5416,7 @@ opcode_F_0:
 opcode_F_1:
 .if FAST_Z80SP
 	ldrb z80f,[z80sp],#1
-	sub r0,opcodes,#0x200
+	get_af_arm r0
 	ldrb z80f,[r0,z80f]
 	ldrb z80a,[z80sp],#1
 	lsl z80sp, #16
@@ -5419,7 +5432,7 @@ opcode_F_1:
 	and z80a,r0,#0xFF00
 	mov z80a,z80a,lsl#16
 	and z80f,r0,#0xFF
-	sub r0,opcodes,#0x200
+	get_af_arm r0
 	ldrb z80f,[r0,z80f]
 .endif
 	fetch 10
@@ -5446,14 +5459,14 @@ opcode_F_5:
 .if FAST_Z80SP
 	mov r1,z80a, lsr #24
 	strb r1,[z80sp,#-1]!
-	sub r0,opcodes,#0x300
+	get_af_z80 r0
 	ldrb r1,[r0,z80f]
 	strb r1,[z80sp,#-1]!
 	lsl z80sp, #16
 	lsr z80sp, #16
 	orr z80sp, #0xe0000000
 .else
-	sub r0,opcodes,#0x300
+	get_af_z80 r0
 	ldrb r0,[r0,z80f]
 	orr r0,r0,z80a,lsr#16
 	sub z80sp,z80sp,#2
@@ -7348,7 +7361,7 @@ opcode_ED_40:
 	opIN_C
 	and z80bc,z80bc,#0xFF<<16
 	orr z80bc,z80bc,r0, lsl #24
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb r0,[r1,r0]
 	and z80f,z80f,#1<<CFlag
 	orr z80f,z80f,r0
@@ -7397,7 +7410,7 @@ opcode_ED_48:
 	opIN_C
 	and z80bc,z80bc,#0xFF<<24
 	orr z80bc,z80bc,r0, lsl #16
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb r0,[r1,r0]
 	and z80f,z80f,#1<<CFlag
 	orr z80f,z80f,r0
@@ -7457,7 +7470,7 @@ opcode_ED_50:
 	opIN_C
 	and z80de,z80de,#0xFF<<16
 	orr z80de,z80de,r0, lsl #24
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb r0,[r1,r0]
 	and z80f,z80f,#1<<CFlag
 	orr z80f,z80f,r0
@@ -7499,7 +7512,7 @@ opcode_ED_58:
 	opIN_C
 	and z80de,z80de,#0xFF<<24
 	orr z80de,z80de,r0, lsl #16
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb r0,[r1,r0]
 	and z80f,z80f,#1<<CFlag
 	orr z80f,z80f,r0
@@ -7546,7 +7559,7 @@ opcode_ED_60:
 	opIN_C
 	and z80hl,z80hl,#0xFF<<16
 	orr z80hl,z80hl,r0, lsl #24
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb r0,[r1,r0]
 	and z80f,z80f,#1<<CFlag
 	orr z80f,z80f,r0
@@ -7567,7 +7580,7 @@ opcode_ED_67:
 	bic z80a,z80a,#0x0F000000
 	orr z80a,z80a,r1,lsr#4
 	writemem8HL
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb r0,[r1,z80a, lsr #24]
 	and z80f,z80f,#1<<CFlag
 	orr z80f,z80f,r0
@@ -7578,7 +7591,7 @@ opcode_ED_68:
 	and z80hl,z80hl,#0xFF<<24
 	orr z80hl,z80hl,r0, lsl #16
 	and z80f,z80f,#1<<CFlag
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb r0,[r1,r0]
 	orr z80f,z80f,r0
 	fetch 12
@@ -7600,7 +7613,7 @@ opcode_ED_6F:
 	orr z80a,z80a,r0,lsl#16
 	and z80a,z80a,#0xFF000000
 	writemem8HL
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb r0,[r1,z80a, lsr #24]
 	and z80f,z80f,#1<<CFlag
 	orr z80f,z80f,r0
@@ -7609,7 +7622,7 @@ opcode_ED_6F:
 opcode_ED_70:
 	opIN_C
 	and z80f,z80f,#1<<CFlag
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb r0,[r1,r0]
 	orr z80f,z80f,r0
 	fetch 12
@@ -7647,7 +7660,7 @@ opcode_ED_78:
 	opIN_C
 	mov z80a,r0, lsl #24
 	and z80f,z80f,#1<<CFlag
-	sub r1,opcodes,#0x100
+	get_pzs r1
 	ldrb r0,[r1,r0]
 	orr z80f,z80f,r0
 	fetch 12
