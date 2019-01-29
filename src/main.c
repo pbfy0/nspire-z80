@@ -10,6 +10,7 @@
 #include "speedcontrol.h"
 #include "savestate.h"
 #include "rtc.h"
+#include "keypad.h"
 #include "main.h"
 #include <stdarg.h>
 #include <stddef.h>
@@ -62,20 +63,63 @@ uint32_t port_debug = 0;
 //volatile extern unsigned aaa;
 
 int main(int argc, char **argv){
+	if(argc == 1){
+		//*dot = '\0';
+		cfg_register_fileext("8rom", "nspire-z80");
+		cfg_register_fileext("8sav", "nspire-z80");
+		//*dot = '.';
+		show_msgbox("Info", "File extension registered. Open a 8rom file to use.");
+		return 0;
+	}
 #ifdef USE_NAVNETIO
 	navnet_io_early();
 	g_stream = navnet_io_init();
 #endif
+	/*char *arg_end = argv[0] + strlen(argv[0]);
+	char *basename = arg_end;
+	while(basename[-1] != '/') basename--;
+	char *dot = basename;
+	while(*dot != '.') dot++;*/
 	printf("main = %p\n", main);
-	if(isKeyPressed(KEY_NSPIRE_0)) return 1;
-	
-	if(argc == 1){
-		//cfg_register_fileext("8lnk", "nspire-z80");
-		cfg_register_fileext("8rom", "nspire-z80");
-		cfg_register_fileext("8sav", "nspire-z80");
-		show_msgbox("Info", "File extension registered. Open a 8rom file to use.");
-		return 0;
+	enable_relative_paths(argv);
+	keypad_set_type(KEYPAD_NSPIRE);
+	FILE *cfg_file = fopen("nspire-z80.cfg.tns", "r");
+	if(cfg_file) {
+		puts("Reading config file...");
+		fseek(cfg_file, 0, SEEK_END);
+		int cfg_size = ftell(cfg_file);
+		fseek(cfg_file, 0, 0);
+		char *cfg = malloc(cfg_size + 1);
+		fread(cfg, 1, cfg_size, cfg_file);
+		cfg[cfg_size] = 0;
+		fclose(cfg_file);
+		char *cur_cfg = cfg;
+		puts(cfg);
+#define L_STRNCMP(a, b) strncmp(a, b, strlen(b))
+		while(cur_cfg < cfg + cfg_size) {
+			puts("aaa");
+			if(L_STRNCMP(cur_cfg, "keypad=") == 0) {
+				puts("bbb");
+				cur_cfg += strlen("keypad=");
+				if(L_STRNCMP(cur_cfg, "84") == 0) {
+					keypad_set_type(KEYPAD_84);
+					cur_cfg += strlen("84");
+				} else if(L_STRNCMP(cur_cfg, "old") == 0) {
+					keypad_set_type(KEYPAD_OLD_NSPIRE);
+					cur_cfg += strlen("old");
+				} else if(L_STRNCMP(cur_cfg, "default") == 0) {
+					keypad_set_type(KEYPAD_NSPIRE);
+					cur_cfg += strlen("default");
+				}
+			}
+			while(*cur_cfg != '\n' && *cur_cfg != '\0') cur_cfg++;
+			cur_cfg++;
+		}
+		free(cfg);
+	} else {
+		puts("Couldn't read config file; using default settings");
 	}
+
 	printf("begin\n");
 	mmu_init();
 	printf("mmu_init done\n");
@@ -132,6 +176,15 @@ int main(int argc, char **argv){
 		fclose(romfile);
 		clear_cache();
 	}
+
+	/*if(strcmp(arg_end - strlen("-84k"), "-84k") == 0) {
+		keypad_set_type(KEYPAD_84);
+	} else if(strcmp(arg_end - strlen("-oldk"), "-oldk") == 0) {
+		keypad_set_type(KEYPAD_OLD_NSPIRE);
+	} else {
+		keypad_set_type(KEYPAD_NSPIRE);
+	}*/
+	
 	speedcontrol_init();
 	interrupt_init();
 	//memset(REAL_SCREEN_BASE_ADDRESS, 2, 100);
