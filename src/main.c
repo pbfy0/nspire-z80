@@ -235,7 +235,7 @@ int main(int argc, char **argv){
 		//printf("%d\n", cycles_to_run);
 		int cycles_left = /*(ZCpu.Z80IF & Z80_HALT) && (ZCpu.Z80_IRQ == 0) ? 0 : */DrZ80Run(&ZCpu, cycles_to_run);
 		int cycles_elapsed = cycles_to_run == cycles_left ? 10000 : cycles_to_run - cycles_left;
-		if(isKeyPressed(KEY_NSPIRE_CAT)) {
+		/*if(isKeyPressed(KEY_NSPIRE_CAT)) {
 			char *pc = (char *)ZCpu.Z80PC;
 			int pcb = ZCpu.Z80PC - ZCpu.Z80PC_BASE;
 			printf("%d %d %04x %02x%02x%02x%02x\n", i++, cycles_elapsed, pcb, pc[0], pc[1], pc[2], pc[3]);//, ZCpu.Z80BC);
@@ -243,7 +243,7 @@ int main(int argc, char **argv){
 			printf("sp	%04x	ix	%04x	iy	%04x\n", ZCpu.Z80SP - ZCpu.Z80SP_BASE, ZCpu.Z80IX >> 16, ZCpu.Z80IY >> 16);
 		}
 		
-		port_debug = isKeyPressed(KEY_NSPIRE_P);
+		port_debug = isKeyPressed(KEY_NSPIRE_P);*/
 		//if(aaa) {
 		//	puts("aaa");
 		//	aaa = 0;
