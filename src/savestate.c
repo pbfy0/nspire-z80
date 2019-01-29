@@ -28,7 +28,7 @@ void savestate_save(char *romfn){
 	//fseek(savefile, sizeof(struct DrZ80Regs), SEEK_CUR);
 	uint32_t *page = malloc(0x4000);
 	uint32_t *f32 = (uint32_t *)flash;
-	uint8_t dps[N_PAGES] = {0};
+	uint8_t *dps = calloc(N_PAGES, sizeof(uint8_t));
 	uint8_t ndp = 0;
 	FILE *romfile = fopen(romfn, "rb");
 	unsigned i;
@@ -55,6 +55,7 @@ void savestate_save(char *romfn){
 			fwrite(&flash[i * 0x4000], 0x4000, 1, savefile);
 		}
 	}
+	free(dps);
 	fwrite(ram, RAM_SIZE, 1, savefile);
 	lcd_save(savefile);
 	io_save(savefile);
@@ -67,7 +68,7 @@ void savestate_save(char *romfn){
 	fclose(savefile);
 }
 
-void savestate_load(char *savefn, char **romfn_p){
+void savestate_load(char *savefn, char *romfn){
 	printf("Starting savestate load\n");
 	FILE *savefile = fopen(savefn, "rb");
 	
@@ -83,12 +84,7 @@ void savestate_load(char *savefn, char **romfn_p){
 	fread(&ZCpu, sizeof(struct DrZ80Regs), 1, savefile);
 	//fseek(savefile, sizeof(struct DrZ80Regs), SEEK_CUR);
 	uint16_t zpc = ZCpu.Z80PC;
-	uint8_t sfnl = strlen(savefn);//fgetc(savefile);
-	char *romfn = malloc(sfnl+1);
-	memcpy(romfn, savefn, sfnl+1);
-	memcpy(romfn + sfnl - 8, "8rom", 4);
-	*romfn_p = romfn;
-		
+	
 	printf("Loading rom from %s\n", romfn);
 	
 	FILE *romfile = fopen(romfn, "rb");

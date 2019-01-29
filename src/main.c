@@ -12,6 +12,7 @@
 #include "rtc.h"
 #include "keypad.h"
 #include "main.h"
+#include "cselcd.h"
 #include <stdarg.h>
 #include <stddef.h>
 #include "navnet-io.h"
@@ -53,8 +54,36 @@ size_t __wrap_printf(const char *format, ...) {
 size_t __wrap_puts(const char *str) {
 	return printf("%s\n", str);
 }
+
 #endif
 //#define printf(...)
+
+const struct calc_type calc_types[] = {
+{ // 84+SE
+	.flash_size = 0x200000,
+	.i_flash_size = 1,
+	.boot_page = 0x7f,
+	.ef_mask = 0,
+	.cselcd = 0
+},
+{ // 84+
+	.flash_size = 0x100000,
+	.i_flash_size = 0,
+	.boot_page = 0x3f,
+	.ef_mask = 0,
+	.cselcd = 0
+},
+{ // 84+CSE
+	.flash_size = 0x400000,
+	.i_flash_size = 2,
+	.boot_page = 0xff,
+	.ef_mask = 1,
+	.cselcd = 1
+}
+};
+
+struct calc_type g_calc = calc_types[0];
+#define N_CALC_TYPES (sizeof(calc_types) / sizeof(calc_types[0]))
 
 
 //uint8_t *flash;
@@ -92,7 +121,6 @@ int main(int argc, char **argv){
 		puts(cfg);
 #define L_STRNCMP(a, b) strncmp(a, b, strlen(b))
 		while(cur_cfg < cfg + cfg_size) {
-			puts("aaa");
 			if(L_STRNCMP(cur_cfg, "keypad=") == 0) {
 				puts("bbb");
 				cur_cfg += strlen("keypad=");
@@ -114,26 +142,48 @@ int main(int argc, char **argv){
 	} else {
 		puts("Couldn't read config file; using default settings");
 	}
+	
+	int l = strlen(argv[1]);
+	char *extn = argv[1] + l - 4 - 4;
+	char *load_file = argv[1];//[256];
+	
+	uint8_t sfnl = strlen(load_file);//fgetc(savefile);
+	char *romfn = malloc(sfnl+1);
+	memcpy(romfn, load_file, sfnl+1);
+	memcpy(romfn + sfnl - 8, "8rom", 4);
+	
+	FILE *l_romfile;
+	if(!(l_romfile = fopen(romfn, "rb"))){
+		show_msgbox("Error", "Could not open rom");
+		return 1;
+	}
+	fseek(l_romfile, 0, SEEK_END);
+	unsigned romsize = ftell(l_romfile);
+	fclose(l_romfile);
+
+	unsigned j;
+	for(j = 0; j < N_CALC_TYPES; j++) {
+		if (calc_types[j].flash_size == romsize) {
+			g_calc = calc_types[j];
+			break;
+		}
+	}
 
 	printf("begin\n");
 	mmu_init();
 	printf("mmu_init done\n");
 #ifndef NO_LCD
-#if CALC_TYPE == CALC_84PCSE
-	cselcd_init();
-#else
-	m_lcd_init();
-#endif
+	if (g_calc.cselcd) {
+		cselcd_init();
+	} else {
+		m_lcd_init();
+	}
 #endif
 	cpu_init();
 	
 	io_init();
 	printf("lcd, cpu, io done\n");
 	
-	int l = strlen(argv[1]);
-	char *sav_romname = NULL;
-	char *extn = argv[1] + l - 4 - 4;
-	char *load_file = argv[1];//[256];
 	/*if(strncmp(extn, "8lnk", 4) == 0) {
 		FILE *lnkfile;
 		if(!(lnkfile = fopen(argv[1], "rb"))){
@@ -154,16 +204,13 @@ int main(int argc, char **argv){
 	}*/
 	
 	if(strncmp(extn, "8sav", 4) == 0){
-		savestate_load(load_file, &sav_romname);
+		savestate_load(load_file, romfn);
 	}else{
 		FILE *romfile;
 		if(!(romfile = fopen(load_file, "rb"))){
 			show_msgbox("Error", "Could not open rom");
 			return 1;
 		}
-		fseek(romfile, 0, SEEK_END);
-		int romsize = ftell(romfile);
-		fseek(romfile, 0, 0);
 		//printf("%d\n", romsize);
 		//flash = calloc(0x20000, 1);
 		printf("flash=%p\n", flash);
@@ -207,19 +254,14 @@ int main(int argc, char **argv){
 	}
 	interrupt_end();
 	
-	if(sav_romname){
-		savestate_save(sav_romname);
-		//refresh_osscr();
-		free(sav_romname);
-	}else{
-		savestate_save(argv[1]);
-	}
+	savestate_save(romfn);
+	free(romfn);
 #ifndef NO_LCD
-#if CALC_TYPE == CALC_84PCSE
-	cselcd_end();
-#else
-	lcd_end();
-#endif
+	if (g_calc.cselcd) {
+		cselcd_end();
+	} else {
+		lcd_end();
+	}
 #endif
 	speedcontrol_end();
 	mmu_end();

@@ -18,10 +18,6 @@ ZEHNFLAGS = --name "nspire-z80" --uses-lcd-blit false --240x320-support true
 SRC_DIR = src
 DEPLOY_DIR =
 
-ifdef CALC_TYPE
-	GCCFLAGS += -DCALC_TYPE=$(CALC_TYPE)
-endif
-
 ifeq ($(NSPIREIO),TRUE)
 	LDFLAGS += -Wl,--nspireio
 	GCCFLAGS += -DNO_LCD

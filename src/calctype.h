@@ -1,30 +1,19 @@
 #ifndef CALCTYPE_H
 #define CALCTYPE_H
+#include <stdbool.h>
 
-#define CALC_84P 0
-#define CALC_84PSE 1
-#define CALC_84PCSE 2
+struct calc_type {
+	unsigned flash_size;
+	unsigned i_flash_size;
+	unsigned boot_page;
+	unsigned ef_mask;
+	bool cselcd;
+};
+extern struct calc_type g_calc;
 
-#ifndef CALC_TYPE
-#define CALC_TYPE CALC_84PSE
-#endif
-
-#if CALC_TYPE == CALC_84PCSE
-#define FLASH_SIZE 0x400000
-#define BOOT_PAGE 0xff
-#define EF_MASK 1
-
-#elif CALC_TYPE == CALC_84P
-#define FLASH_SIZE 0x100000
-#define BOOT_PAGE 0x3f
-#define EF_MASK 0
-
-#elif CALC_TYPE == CALC_84PSE
-#define FLASH_SIZE 0x200000
-#define BOOT_PAGE 0x7f
-#define EF_MASK 0
-
-#endif
+#define FLASH_SIZE g_calc.flash_size
+#define BOOT_PAGE g_calc.boot_page
+#define EF_MASK g_calc.ef_mask
 
 #define RAM_SIZE 0x20000
 #endif

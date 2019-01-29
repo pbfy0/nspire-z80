@@ -34,9 +34,8 @@ struct io_state {
 #else
 #define I_FLASH_SIZE 1
 #endif*/
-#define I_FLASH_SIZE CALC_TYPE
 
-struct io_state is = {I_FLASH_SIZE | 2<<4, 0, 0, 0};
+struct io_state is = {0};
 
 struct z80port ports[0x100];
 
@@ -52,6 +51,7 @@ void io_init(){
 		ports[i] = (struct z80port){.number = i};
 		//ports[i].number = i;
 	}
+	is.mem_size = g_calc.i_flash_size | 2<<4;
 	
 	ports[0x00].name = "link port";
 	ports[0x00].const_val = 0x03;
@@ -91,12 +91,12 @@ void io_init(){
 #ifdef NO_LCD
 	ports[0x10].const_val = 0;
 #else
-#if CALC_TYPE != CALC_84PCSE
-	ports[0x10].in.r = lcd_cmd_read;
-	ports[0x10].out.r = lcd_cmd;
-#else
-	ports[0x10].out.r = cselcd_ctrl_out;
-#endif
+	if (!g_calc.cselcd) {
+		ports[0x10].in.r = lcd_cmd_read;
+		ports[0x10].out.r = lcd_cmd;
+	} else {
+		ports[0x10].out.r = cselcd_ctrl_out;
+	}
 #endif
 	ports[0x12].mirror = &ports[0x10];
 	
@@ -105,13 +105,13 @@ void io_init(){
 #ifdef NO_LCD
 	ports[0x11].const_val = 0;
 #else
-#if CALC_TYPE != CALC_84PCSE
-	ports[0x11].in.r = lcd_data_read;
-	ports[0x11].out.r = lcd_data;
-#else
-	ports[0x11].in.r = cselcd_data_in;
-	ports[0x11].out.r = cselcd_data_out;
-#endif
+	if (!g_calc.cselcd) {
+		ports[0x11].in.r = lcd_data_read;
+		ports[0x11].out.r = lcd_data;
+	} else {
+		ports[0x11].in.r = cselcd_data_in;
+		ports[0x11].out.r = cselcd_data_out;
+	}
 #endif
 	ports[0x13].mirror = &ports[0x11];
 	

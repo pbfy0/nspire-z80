@@ -55,14 +55,14 @@ void keypad_write(uint8_t val){
 }
 
 uint8_t keypad_read(){
-	const t_key *(* c_key_ar)[7] = key_ar[(int)key_type];
+	const t_key * const(* c_key_ar)[7] = key_ar[(int)key_type];
 	int i;
 	uint8_t o = 0;
 	for(i = 0; i < 7; i++){
 		if(mon & 1<<i){
 			int j;
 			for(j = 0; j < 8; j++){
-				t_key *k = c_key_ar[j][i];
+				const t_key *k = c_key_ar[j][i];
 				if(k != NULL) o |= isKeyPressed(*k) << j;
 			}
 		}
