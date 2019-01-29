@@ -13,6 +13,7 @@ const t_key *n_legacy_key_ar[8][7] = {
 	{NULL,		K(DIVIDE),	K(RP),		K(LP),		K(COMMA),K(SQU),	K(A)},
 	{NULL,		K(EXP),		K(TAN),		K(COS),		K(SIN),	K(QUESEXCL),	K(CTRL)},
 	{NULL,		K(RET),		K(VAR),		K(SCRATCHPAD),	K(DOC),	K(MENU),	K(TAB)},
+	{NULL,		NULL,		NULL,		K(PI),		K(X),	K(SHIFT),	K(DEL)}
 };
 
 const t_key *n_key_ar[8][7] = {
