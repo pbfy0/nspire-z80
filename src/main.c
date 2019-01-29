@@ -75,11 +75,6 @@ int main(int argc, char **argv){
 	navnet_io_early();
 	g_stream = navnet_io_init();
 #endif
-	/*char *arg_end = argv[0] + strlen(argv[0]);
-	char *basename = arg_end;
-	while(basename[-1] != '/') basename--;
-	char *dot = basename;
-	while(*dot != '.') dot++;*/
 	printf("main = %p\n", main);
 	enable_relative_paths(argv);
 	keypad_set_type(KEYPAD_NSPIRE);
@@ -177,14 +172,6 @@ int main(int argc, char **argv){
 		clear_cache();
 	}
 
-	/*if(strcmp(arg_end - strlen("-84k"), "-84k") == 0) {
-		keypad_set_type(KEYPAD_84);
-	} else if(strcmp(arg_end - strlen("-oldk"), "-oldk") == 0) {
-		keypad_set_type(KEYPAD_OLD_NSPIRE);
-	} else {
-		keypad_set_type(KEYPAD_NSPIRE);
-	}*/
-	
 	speedcontrol_init();
 	interrupt_init();
 	//memset(REAL_SCREEN_BASE_ADDRESS, 2, 100);
